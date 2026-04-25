@@ -1,6 +1,7 @@
 import threading
 import time
 from src.services.auth_manager import AuthManager
+from src.services.mqtt_manager import MQTTManager
 from src.collectors.ana_rest_collector import AnaRestCollector
 from src.collectors.apac_meteorologia24h_collector import ApacCollectorMeteorologia24h
 from src.collectors.apac_cemaden_collector import ApacCemadenCollector
@@ -8,9 +9,15 @@ from src.controllers.sensor_manager import VirtualSensor
 
 def main():
     # ==========================================
-    # 1. SETUP DE COLETORES (Drivers dos Sensores)
+    # 1. SETUP DE SERVIÇOS (Auth e MQTT)
     # ==========================================
     auth = AuthManager()
+    mqtt = MQTTManager(broker="broker.hivemq.com") # Usando broker público para exemplo
+    mqtt.connect()
+
+    # ==========================================
+    # 2. SETUP DE COLETORES (Drivers dos Sensores)
+    # ==========================================
     coletor_ana = AnaRestCollector(auth)
     coletor_meteorologia = ApacCollectorMeteorologia24h()
     coletor_cemaden = ApacCemadenCollector()
@@ -26,13 +33,12 @@ def main():
     print("Iniciando provisionamento da malha IoT...\n")
 
     # ==========================================
-    # 2. DEPLOY DA MALHA DE SENSORES CLIMÁTICOS (Meteorologia 24h)
+    # 3. DEPLOY DA MALHA DE SENSORES CLIMÁTICOS (Meteorologia 24h)
     # ==========================================
     print("-> Subindo rede de Estações Climáticas...")
     for cidade in cidades_alvo:
-        # ID Único para o sensor de clima
         id_sensor = f"CLIMA-{cidade}"
-        sensor = VirtualSensor(coletor_meteorologia, id_sensor, intervalo_segundos=600)
+        sensor = VirtualSensor(coletor_meteorologia, id_sensor, mqtt_manager=mqtt, intervalo_segundos=600)
         sensores_ativos.append(sensor)
 
         t = threading.Thread(target=sensor.iniciar_monitoramento, kwargs={'filtro_cidade': cidade})
@@ -40,17 +46,15 @@ def main():
         t.start()
         threads.append(t)
 
-    # Pequeno delay apenas para não embolar os prints no terminal
     time.sleep(2)
 
     # ==========================================
-    # 3. DEPLOY DA MALHA DE PLUVIÔMETROS (Cemaden)
+    # 4. DEPLOY DA MALHA DE PLUVIÔMETROS (Cemaden)
     # ==========================================
     print("\n-> Subindo rede de Pluviômetros e Sensores Geotécnicos...")
     for cidade in cidades_alvo:
-        # ID Único para o sensor de chuva/solo
         id_sensor = f"PLUVIO-{cidade}"
-        sensor = VirtualSensor(coletor_cemaden, id_sensor, intervalo_segundos=600)
+        sensor = VirtualSensor(coletor_cemaden, id_sensor, mqtt_manager=mqtt, intervalo_segundos=600)
         sensores_ativos.append(sensor)
 
         t = threading.Thread(target=sensor.iniciar_monitoramento, kwargs={'filtro_cidade': cidade})
@@ -59,7 +63,27 @@ def main():
         threads.append(t)
 
     # ==========================================
-    # 4. LOOP PRINCIPAL (Mantém o sistema vivo)
+    # 5. DEPLOY DA MALHA TELEMÉTRICA (ANA)
+    # ==========================================
+    print("\n-> Subindo rede de Estações Telemetricas (ANA)...")
+    estacoes_ana = ["33500000"] # Exemplo de código de estação
+    data_hoje = time.strftime("%Y-%m-%d")
+    
+    for cod in estacoes_ana:
+        id_sensor = f"ANA-{cod}"
+        sensor = VirtualSensor(coletor_ana, id_sensor, mqtt_manager=mqtt, intervalo_segundos=3600)
+        sensores_ativos.append(sensor)
+
+        t = threading.Thread(target=sensor.iniciar_monitoramento, kwargs={
+            'cod_estacao': cod, 
+            'data_busca': data_hoje
+        })
+        t.daemon = True
+        t.start()
+        threads.append(t)
+
+    # ==========================================
+    # 6. LOOP PRINCIPAL (Mantém o sistema vivo)
     # ==========================================
     print("\n[+] Todas as threads de sensores foram iniciadas. Aguardando leituras...\n")
     try:
@@ -69,6 +93,7 @@ def main():
         print("\n[!] Sinal de interrupção recebido. Desativando todos os nós...")
         for sensor in sensores_ativos:
             sensor.parar()
+        mqtt.disconnect()
 
 if __name__ == "__main__":
     main()
