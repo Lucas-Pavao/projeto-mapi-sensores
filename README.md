@@ -1,69 +1,74 @@
 # Sistema de Monitoramento Ambiental Distribuído (projeto-mapi)
 
-Este projeto, batizado internamente como `projeto-mapi`, é um sistema de monitoramento ambiental distribuído que simula uma arquitetura de Edge/Fog Computing. Ele foi projetado para coletar, processar e unificar dados meteorológicos e hidrológicos de múltiplas fontes em tempo real.
+Este projeto, batizado internamente como `projeto-mapi`, é um sistema de monitoramento ambiental distribuído que simula uma arquitetura de Edge/Fog Computing. Ele foi projetado para coletar, processar e unificar dados meteorológicos e hidrológicos de múltiplas fontes em tempo real, integrando agora comunicação via protocolo **MQTT**.
 
 ## Tabela de Conteúdos
 - [Sobre o Projeto](#sobre-o-projeto)
 - [Principais Características](#principais-características)
+- [Arquitetura e Tecnologias](#arquitetura-e-tecnologias)
 - [Estrutura do Projeto](#estrutura-do-projeto)
 - [Como Começar](#como-começar)
   - [Pré-requisitos](#pré-requisitos)
   - [Instalação](#instalação)
 - [Configuração](#configuração)
-  - [Obtendo Acesso à API da ANA](#obtendo-acesso-à-api-da-ana)
+  - [MQTT](#mqtt)
+  - [API da ANA](#api-da-ana)
 - [Como Executar](#como-executar)
 
 ## Sobre o Projeto
 
-O sistema utiliza um modelo de **Sensores Virtuais Paralelos**. Em vez de uma coleta sequencial e lenta, cada ponto de monitoramento (cidade) e cada tipo de dado (clima, chuva, nível de rio) funciona como um "nó" independente na rede, executando sua própria coleta de forma paralela.
+O sistema utiliza um modelo de **Sensores Virtuais Paralelos**. Cada ponto de monitoramento e cada tipo de dado funciona como um "nó" independente, executando sua coleta de forma paralela e publicando os resultados em um broker MQTT.
 
-- **Multithreading**: Utilizamos a biblioteca `threading` para que cada sensor virtual rode em paralelo. Isso garante que a lentidão ou falha em um endpoint (ex: API da APAC) não trave a coleta de dados de outras fontes (ex: ANA).
-- **Separação de Responsabilidades**: O sistema é modular e dividido em:
-  - **Coletores**: Drivers que sabem como se comunicar com as APIs de origem (APAC, ANA, etc.).
-  - **Gerenciador de Sensores**: Controla o ciclo de vida, a formatação e a apresentação dos dados de cada sensor virtual.
-  - **Orquestrador (`main.py`)**: Ponto de entrada que inicializa e gerencia a operação do sistema.
+- **Multithreading**: Cada sensor virtual roda em uma thread independente, garantindo alta disponibilidade e resiliência a falhas de rede.
+- **Comunicação MQTT**: Todos os dados coletados são publicados em tópicos estruturados, permitindo a integração fácil com dashboards (como Node-RED ou Grafana) e outros sistemas.
+- **Modularidade**: Divisão clara entre coletores de dados, gerenciamento de sensores e serviços de comunicação.
 
 ## Principais Características
 
-- **Coletores de Dados Implementados**:
-  - **APAC Meteorologia 24h**: Extrai dados de estações automáticas (umidade/temperatura do solo, radiação solar, etc.).
-  - **APAC Cemaden**: Focado em pluviometria (chuva) e dados geotécnicos.
-  - **ANA (Agência Nacional de Águas)**: Integração via REST para consumir dados de telemetria de bacias hidrográficas.
-- **Processamento e Normalização**:
-  - Funções para remover acentos e padronizar nomes de cidades (ex: "JABOATÃO" -> "JABOATAO"), garantindo o cruzamento de dados entre APIs.
-  - Roteamento inteligente de formatação para exibir os dados de forma limpa e legível no console, identificando a origem.
+- **3 Malhas de Sensores Virtuais**:
+  1. **Clima (APAC Meteorologia 24h)**: Temperatura, umidade do ar, radiação solar e umidade do solo.
+  2. **Pluviômetros (APAC Cemaden)**: Precipitação acumulada e dados geotécnicos.
+  3. **Telemétricos (ANA)**: Nível de rios, vazão e chuva adotada via API REST.
+- **Protocolo MQTT**: Publicação automática no tópico `projeto-mapi/sensores/{ID_SENSOR}`.
+- **Refatoração Orientada a Objetos**: Utilização de classes base para coletores, minimizando duplicação de código.
+
+## Arquitetura e Tecnologias
+
+- **Linguagem**: Python 3.x
+- **Bibliotecas Principais**:
+    - `paho-mqtt`: Comunicação com o broker MQTT.
+    - `requests`: Requisições HTTP/REST para as APIs.
+    - `beautifulsoup4`: Parsing de dados quando necessário.
+    - `python-dotenv`: Gerenciamento de variáveis de ambiente.
+    - `threading`: Execução paralela dos sensores.
 
 ## Estrutura do Projeto
 
-A estrutura de diretórios e arquivos do projeto está organizada da seguinte forma:
-
 ```
 projeto-mapi/
-├── .env
-├── .gitignore
-├── main.py
-├── README.md
 ├── requirements.txt
 ├── src/
-│   ├── __init__.py
+│   ├── main.py                 # Ponto de entrada do sistema
 │   ├── collectors/
-│   │   ├── __init__.py
-│   │   └── ana_rest.py
-│   └── services/
-│       ├── __init__.py
-│       └── auth_manager.py
-└── tests/
-    └── ...
+│   │   ├── base_collector.py   # Lógica base para coletores APAC
+│   │   ├── ana_rest_collector.py
+│   │   ├── apac_cemaden_collector.py
+│   │   └── apac_meteorologia24h_collector.py
+│   ├── controllers/
+│   │   └── sensor_manager.py   # Gerenciamento do ciclo de vida do sensor
+│   ├── services/
+│   │   ├── auth_manager.py     # Autenticação (ANA)
+│   │   └── mqtt_manager.py     # Cliente MQTT
+│   └── utils/
+│       └── text_utils.py       # Tratamento de strings e acentos
+└── ...
 ```
 
 ## Como Começar
 
-Siga os passos abaixo para configurar e executar o projeto em seu ambiente local.
-
 ### Pré-requisitos
-
-- Python 3.8 ou superior
-- `pip` (gerenciador de pacotes do Python)
+- Python 3.8+
+- Broker MQTT (Ex: HiveMQ, Mosquitto ou local)
 
 ### Instalação
 
@@ -73,10 +78,10 @@ Siga os passos abaixo para configurar e executar o projeto em seu ambiente local
    cd projeto-mapi
    ```
 
-2. **Crie e ative um ambiente virtual (recomendado):**
+2. **Crie e ative um ambiente virtual:**
    ```sh
    python -m venv .venv
-   source .venv/bin/activate  # No Windows, use: .venv\Scripts\activate
+   source .venv/bin/activate  # Windows: .venv\Scripts\activate
    ```
 
 3. **Instale as dependências:**
@@ -84,45 +89,31 @@ Siga os passos abaixo para configurar e executar o projeto em seu ambiente local
    pip install -r requirements.txt
    ```
 
-4. **Configure suas credenciais (veja a seção abaixo):**
-   Crie um arquivo chamado `.env` na raiz do projeto, usando o `.env.example` como modelo.
-
 ## Configuração
 
-O sistema precisa de credenciais para acessar APIs protegidas, como a da ANA. Crie um arquivo `.env` na raiz do projeto com o seguinte conteúdo:
-
-**.env.example**
-```ini
-# =================================================
-# CREDENCIAIS PARA A AGÊNCIA NACIONAL DE ÁGUAS (ANA)
-# =================================================
-# O AuthManager irá ler estas variáveis para se autenticar na API da ANA
-# e obter um token de acesso dinamicamente.
-
-ANA_IDENTIFICADOR="seu_identificador_aqui"
-ANA_SENHA="sua_senha_aqui"
+### MQTT
+O sistema está configurado por padrão para utilizar o broker público da HiveMQ. Para alterar, edite o `src/main.py`:
+```python
+mqtt = MQTTManager(broker="seu-broker.com", port=1883)
 ```
 
-### Obtendo Acesso à API da ANA
-
-Diferente da APAC, que fornece dados abertos, a ANA exige um fluxo mais formal para acesso aos seus serviços de telemetria. O processo é o seguinte:
-
-1.  **Solicite suas Credenciais**: O primeiro passo é solicitar o acesso. Envie um e-mail para **hidro@ana.gov.br** com o assunto `CPF ou CNPJ - Solicitação de acesso à API HidroWebService`. A equipe da ANA irá processar sua solicitação e retornar com um `identificador` e uma `senha`.
-
-2.  **Explore a Documentação**: Enquanto aguarda, você pode consultar a documentação oficial nos portais da ANA, como o Sistema de Informações Hidrológicas (SNIRH) ou o portal de dados abertos. O coletor deste projeto está preparado para a versão REST da API.
-
-3.  **Configure as Credenciais no Projeto**: Assim que receber suas credenciais, preencha as variáveis `ANA_IDENTIFICADOR` e `ANA_SENHA` no arquivo `.env`. O objeto `AuthManager()` cuidará do resto, usando essas credenciais para solicitar um token de acesso dinâmico e injetá-lo nas requisições.
+### API da ANA
+Crie um arquivo `.env` na raiz do projeto com suas credenciais:
+```ini
+ANA_IDENTIFICADOR="seu_usuario"
+ANA_SENHA="sua_senha"
+```
+*Para obter acesso, envie e-mail para hidro@ana.gov.br.*
 
 ## Como Executar
 
-Após a instalação e configuração do arquivo `.env`, inicie o sistema com o seguinte comando:
-
+Inicie o sistema com:
 ```sh
-python main.py
+python src/main.py
 ```
 
-Ao ser executado, o `main.py` irá:
-1.  Instanciar os drivers de conexão (Coletores).
-2.  Provisionar as malhas de sensores para as cidades configuradas (atualmente, da Região Metropolitana do Recife).
-3.  Iniciar o loop de coleta de cada sensor em uma thread separada.
-4.  Exibir os dados filtrados e formatados no console, prontos para serem enviados futuramente para um banco de dados ou dashboard.
+O sistema irá:
+1. Conectar ao Broker MQTT.
+2. Iniciar threads para cada sensor das cidades alvo.
+3. Coletar e publicar dados periodicamente.
+4. Exibir o status das leituras no console.
