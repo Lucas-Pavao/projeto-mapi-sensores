@@ -28,8 +28,8 @@ def main():
     # 1. SETUP DE SERVIÇOS (Auth e MQTT)
     # ==========================================
     auth = AuthManager()
-    # Recomendado: Usar um broker Docker (localhost) se estiver em produção
-    mqtt = MQTTManager(broker="broker.hivemq.com") 
+    # Configurações via .env
+    mqtt = MQTTManager() 
     mqtt.connect()
 
     sensores_ativos = []
@@ -67,12 +67,14 @@ def main():
     # --- ANA ---
     if escolha in ['2', '3']:
         coletor_ana = AnaRestCollector(auth)
-        estacoes_ana = ["39170000"] # Exemplo de código de estação (Rio Capibaribe)
+        # Estações: Rio Capibaribe (São Lourenço) e Barreiros
+        estacoes_ana = ["39187800", "39590000"] 
         data_hoje = time.strftime("%Y-%m-%d")
 
         print("\n-> Provisionando sensores ANA (Fog Logic habilitada)...")
         for cod in estacoes_ana:
-            id_a = f"ANA-TELE-{cod}"
+            nome_rio = "CAPIBARIBE" if cod == "39187800" else "BARREIROS"
+            id_a = f"ANA-TELE-{nome_rio}"
             s_a = VirtualSensor(coletor_ana, id_a, mqtt_manager=mqtt, intervalo_segundos=120)
             sensores_ativos.append(s_a)
             t_a = threading.Thread(target=s_a.iniciar_monitoramento, kwargs={
@@ -85,8 +87,9 @@ def main():
     # ==========================================
     # 3. MONITORAMENTO DO SISTEMA
     # ==========================================
+    topic_prefix = os.getenv("MQTT_TOPIC_PREFIX", "projeto-mapi/sensores")
     print(f"\n[+] {len(sensores_ativos)} sensores virtuais em execução.")
-    print("[+] Publicando em: projeto-mapi/sensores/#")
+    print(f"[+] Publicando em: {topic_prefix}/#")
     
     try:
         while True:

@@ -91,19 +91,29 @@ projeto-mapi/
 
 ## Configuração
 
-### MQTT
-O sistema está configurado por padrão para utilizar o broker público da HiveMQ. Para alterar, edite o `src/main.py`:
-```python
-mqtt = MQTTManager(broker="seu-broker.com", port=1883)
+O sistema utiliza variáveis de ambiente para todas as suas configurações críticas. Crie um arquivo `.env` na raiz do projeto baseando-se no arquivo `.env.example`.
+
+### Variáveis de Ambiente (.env)
+
+```ini
+# APAC Config
+APAC_BASE_URL=http://dados.apac.pe.gov.br:41120
+APAC_CEMADEN_ENDPOINT=cemaden
+APAC_METEOROLOGIA_ENDPOINT=meteorologia24h
+
+# ANA Config
+ANA_AUTH_URL=https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1
+ANA_BASE_URL=https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1
+ANA_IDENTIFICADOR="seu_identificador"
+ANA_SENHA="sua_senha"
+
+# MQTT Config
+MQTT_BROKER=broker.hivemq.com
+MQTT_PORT=1883
+MQTT_TOPIC_PREFIX=projeto-mapi/sensores
 ```
 
-### API da ANA
-Crie um arquivo `.env` na raiz do projeto com suas credenciais:
-```ini
-ANA_IDENTIFICADOR="seu_usuario"
-ANA_SENHA="sua_senha"
-```
-*Para obter acesso, envie e-mail para hidro@ana.gov.br.*
+*Para obter credenciais da ANA, envie e-mail para hidro@ana.gov.br.*
 
 ## Como Executar
 

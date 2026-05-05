@@ -8,7 +8,7 @@ load_dotenv()
 
 class AuthManager:
     def __init__(self):
-        self.url_auth = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1"
+        self.url_auth = os.getenv("ANA_AUTH_URL", "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1")
         self.identificador = os.getenv("ANA_IDENTIFICADOR")
         self.senha = os.getenv("ANA_SENHA")
         self.token = None

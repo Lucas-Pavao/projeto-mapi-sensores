@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import random
@@ -60,6 +61,10 @@ class VirtualSensor:
             # ANA
             if 'Chuva_Adotada' in leitura:
                 return float(leitura.get('Chuva_Adotada', 0) or 0)
+            if 'Nivel_Adotado' in leitura:
+                return float(leitura.get('Nivel_Adotado', 0) or 0)
+            if 'Vazao_Adotada' in leitura:
+                return float(leitura.get('Vazao_Adotada', 0) or 0)
             
             # APAC Cemaden
             if 'chuva_acumulada' in leitura:
@@ -101,7 +106,8 @@ class VirtualSensor:
         return payload
 
     def _publicar_mqtt(self, payload):
-        topic = f"projeto-mapi/sensores/{self.id_sensor}"
+        prefix = os.getenv("MQTT_TOPIC_PREFIX", "projeto-mapi/sensores")
+        topic = f"{prefix}/{self.id_sensor}"
         self.mqtt_manager.publish(topic, payload)
         print(f"[MQTT] Payload enviado para {self.id_sensor} (Dados completos incluídos).")
 
