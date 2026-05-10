@@ -109,7 +109,10 @@ class VirtualSensor:
         prefix = os.getenv("MQTT_TOPIC_PREFIX", "projeto-mapi/sensores")
         topic = f"{prefix}/{self.id_sensor}"
         self.mqtt_manager.publish(topic, payload)
-        print(f"[MQTT] Payload enviado para {self.id_sensor} (Dados completos incluídos).")
+        
+        # Log mais específico sobre a origem
+        origem = "Agência Nacional de Águas (ANA)" if "ANA" in self.id_sensor else "APAC - Pernambuco"
+        print(f"[MQTT | {self.id_sensor}] Dados enviados. Fonte: {origem}.")
 
     def parar(self):
         self.ativo = False

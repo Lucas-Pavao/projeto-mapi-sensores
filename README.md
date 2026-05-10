@@ -122,8 +122,10 @@ Inicie o sistema com:
 python src/main.py
 ```
 
-O sistema irá:
-1. Conectar ao Broker MQTT.
-2. Iniciar threads para cada sensor das cidades alvo.
-3. Coletar e publicar dados periodicamente.
-4. Exibir o status das leituras no console.
+O sistema agora opera em **Modo Automático (Malha Completa)**, o que significa que ele irá:
+1. Conectar ao Broker MQTT configurado no `.env`.
+2. Provisionar automaticamente sensores para **APAC (Meteorologia + Cemaden)** e **ANA (Telemetria)**.
+3. Iniciar threads independentes para cada sensor das cidades e estações alvo.
+4. Coletar, processar (Fog Logic) e publicar dados em tempo real.
+5. Exibir logs detalhados no console informando a origem de cada dado.
+
