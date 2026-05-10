@@ -1,11 +1,15 @@
+import os
 import paho.mqtt.client as mqtt
 import json
 import logging
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class MQTTManager:
-    def __init__(self, broker="broker.hivemq.com", port=1883, client_id=None, keepalive=60):
-        self.broker = broker
-        self.port = port
+    def __init__(self, broker=None, port=None, client_id=None, keepalive=60):
+        self.broker = broker or os.getenv("MQTT_BROKER", "broker.hivemq.com")
+        self.port = int(port or os.getenv("MQTT_PORT", 1883))
         self.client_id = client_id
         self.keepalive = keepalive
         self.client = mqtt.Client(client_id=self.client_id)

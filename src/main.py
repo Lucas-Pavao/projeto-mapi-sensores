@@ -1,6 +1,7 @@
 import threading
 import time
 import sys
+import os
 from src.services.auth_manager import AuthManager
 from src.services.mqtt_manager import MQTTManager
 from src.collectors.ana_rest_collector import AnaRestCollector
@@ -8,28 +9,18 @@ from src.collectors.apac_meteorologia24h_collector import ApacCollectorMeteorolo
 from src.collectors.apac_cemaden_collector import ApacCemadenCollector
 from src.controllers.sensor_manager import VirtualSensor
 
-def menu_selecao():
-    print("\n" + "="*40)
-    print("      CONFIGURAÇÃO DA MALHA IOT")
-    print("="*40)
-    print("1. Apenas APAC (Meteorologia + Cemaden)")
-    print("2. Apenas ANA (Telemétrica)")
-    print("3. AMBOS (Malha Completa)")
-    print("4. Sair")
-    escolha = input("\nEscolha os coletores para ativar: ")
-    return escolha
-
 def main():
-    escolha = menu_selecao()
-    if escolha == '4':
-        sys.exit()
+    print("\n" + "="*50)
+    print("      INICIALIZANDO MALHA IOT - PROJETO MAPI")
+    print("      (Modo Automático: Malha Completa Ativa)")
+    print("="*50)
 
     # ==========================================
     # 1. SETUP DE SERVIÇOS (Auth e MQTT)
     # ==========================================
     auth = AuthManager()
-    # Recomendado: Usar um broker Docker (localhost) se estiver em produção
-    mqtt = MQTTManager(broker="broker.hivemq.com") 
+    # Configurações via .env
+    mqtt = MQTTManager() 
     mqtt.connect()
 
     sensores_ativos = []
@@ -38,55 +29,61 @@ def main():
     cidades_alvo = ["RECIFE", "OLINDA", "JABOATAO DOS GUARARAPES"]
 
     # ==========================================
-    # 2. DEPLOY DOS COLETORES SELECIONADOS
+    # 2. DEPLOY DOS COLETORES (MALHA COMPLETA)
     # ==========================================
     
-    # --- APAC ---
-    if escolha in ['1', '3']:
-        coletor_meteorologia = ApacCollectorMeteorologia24h()
-        coletor_cemaden = ApacCemadenCollector()
+    # --- APAC (Agência Pernambucana de Águas e Clima) ---
+    coletor_meteorologia = ApacCollectorMeteorologia24h()
+    coletor_cemaden = ApacCemadenCollector()
 
-        print("\n-> Provisionando sensores APAC (Fog Logic habilitada)...")
-        for cidade in cidades_alvo:
-            # Meteorologia
-            id_m = f"APAC-METEO-{cidade.split()[0]}"
-            s_m = VirtualSensor(coletor_meteorologia, id_m, mqtt_manager=mqtt, intervalo_segundos=60)
-            sensores_ativos.append(s_m)
-            t_m = threading.Thread(target=s_m.iniciar_monitoramento, kwargs={'filtro_cidade': cidade}, daemon=True)
-            t_m.start()
-            threads.append(t_m)
+    print("\n[VIRTUALIZATION] Provisionando sensores APAC via Scraping JSON...")
+    print("  -> Fontes: Meteorologia 24h e Pluviômetros Cemaden")
+    
+    for cidade in cidades_alvo:
+        # Meteorologia
+        id_m = f"APAC-METEO-{cidade.split()[0]}"
+        s_m = VirtualSensor(coletor_meteorologia, id_m, mqtt_manager=mqtt, intervalo_segundos=60)
+        sensores_ativos.append(s_m)
+        t_m = threading.Thread(target=s_m.iniciar_monitoramento, kwargs={'filtro_cidade': cidade}, daemon=True)
+        t_m.start()
+        threads.append(t_m)
 
-            # Pluviômetros
-            id_p = f"APAC-PLUVIO-{cidade.split()[0]}"
-            s_p = VirtualSensor(coletor_cemaden, id_p, mqtt_manager=mqtt, intervalo_segundos=60)
-            sensores_ativos.append(s_p)
-            t_p = threading.Thread(target=s_p.iniciar_monitoramento, kwargs={'filtro_cidade': cidade}, daemon=True)
-            t_p.start()
-            threads.append(t_p)
+        # Pluviômetros
+        id_p = f"APAC-PLUVIO-{cidade.split()[0]}"
+        s_p = VirtualSensor(coletor_cemaden, id_p, mqtt_manager=mqtt, intervalo_segundos=60)
+        sensores_ativos.append(s_p)
+        t_p = threading.Thread(target=s_p.iniciar_monitoramento, kwargs={'filtro_cidade': cidade}, daemon=True)
+        t_p.start()
+        threads.append(t_p)
 
-    # --- ANA ---
-    if escolha in ['2', '3']:
-        coletor_ana = AnaRestCollector(auth)
-        estacoes_ana = ["39170000"] # Exemplo de código de estação (Rio Capibaribe)
-        data_hoje = time.strftime("%Y-%m-%d")
+    # --- ANA (Agência Nacional de Águas) ---
+    coletor_ana = AnaRestCollector(auth)
+    # Estações: Rio Capibaribe (São Lourenço) e Barreiros
+    estacoes_ana = ["39187800", "39590000"] 
+    data_hoje = time.strftime("%Y-%m-%d")
 
-        print("\n-> Provisionando sensores ANA (Fog Logic habilitada)...")
-        for cod in estacoes_ana:
-            id_a = f"ANA-TELE-{cod}"
-            s_a = VirtualSensor(coletor_ana, id_a, mqtt_manager=mqtt, intervalo_segundos=120)
-            sensores_ativos.append(s_a)
-            t_a = threading.Thread(target=s_a.iniciar_monitoramento, kwargs={
-                'cod_estacao': cod, 
-                'data_busca': data_hoje
-            }, daemon=True)
-            t_a.start()
-            threads.append(t_a)
+    print("\n[VIRTUALIZATION] Provisionando sensores ANA via API REST...")
+    print("  -> Fonte: Rede Hidrometeorológica Nacional (Telemetria)")
+    
+    for cod in estacoes_ana:
+        nome_rio = "CAPIBARIBE" if cod == "39187800" else "BARREIROS"
+        id_a = f"ANA-TELE-{nome_rio}"
+        s_a = VirtualSensor(coletor_ana, id_a, mqtt_manager=mqtt, intervalo_segundos=120)
+        sensores_ativos.append(s_a)
+        t_a = threading.Thread(target=s_a.iniciar_monitoramento, kwargs={
+            'cod_estacao': cod, 
+            'data_busca': data_hoje
+        }, daemon=True)
+        t_a.start()
+        threads.append(t_a)
 
     # ==========================================
     # 3. MONITORAMENTO DO SISTEMA
     # ==========================================
-    print(f"\n[+] {len(sensores_ativos)} sensores virtuais em execução.")
-    print("[+] Publicando em: projeto-mapi/sensores/#")
+    topic_prefix = os.getenv("MQTT_TOPIC_PREFIX", "projeto-mapi/sensores")
+    print(f"\n[SISTEMA] {len(sensores_ativos)} sensores virtuais em execução paralela.")
+    print(f"[SISTEMA] Broker MQTT: {os.getenv('MQTT_BROKER', 'broker.hivemq.com')}")
+    print(f"[SISTEMA] Tópico base: {topic_prefix}/#")
     
     try:
         while True:

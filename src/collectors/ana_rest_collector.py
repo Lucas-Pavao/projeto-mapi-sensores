@@ -1,22 +1,23 @@
+import os
 import requests
 from datetime import datetime
+from dotenv import load_dotenv
 
+load_dotenv()
 
 class AnaRestCollector:
     def __init__(self, auth_manager):
-
-        self.base_url = "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas"
+        self.base_url = os.getenv("ANA_BASE_URL", "https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1")
         self.auth = auth_manager
 
     def buscar_dados(self, cod_estacao, data_busca, intervalo_busca="HORA_16", tipo_filtro="DATA_LEITURA"):
-
         token = self.auth.obter_token()
 
         if not token:
-            print("Não foi possível obter um token válido[cite: 640].")
+            print("Não foi possível obter um token válido.")
             return None
 
-        url = f"{self.base_url}/HidroinfoanaSerieTelemetricaAdotada/v1"
+        url = self.base_url
 
         params = {
             "Código da Estação": cod_estacao,

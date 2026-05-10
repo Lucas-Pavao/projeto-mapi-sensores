@@ -1,14 +1,20 @@
+import os
 import requests
 import urllib3
 import json
 from bs4 import BeautifulSoup
 from src.utils.text_utils import remover_acentos
+from dotenv import load_dotenv
+
+load_dotenv()
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 class BaseApacCollector:
-    def __init__(self, endpoint):
-        self.url = f"http://dados.apac.pe.gov.br:41120/{endpoint}/"
+    def __init__(self, endpoint_key):
+        base_url = os.getenv("APAC_BASE_URL", "http://dados.apac.pe.gov.br:41120")
+        endpoint = os.getenv(endpoint_key, endpoint_key.lower().replace("apac_", "").replace("_endpoint", ""))
+        self.url = f"{base_url}/{endpoint}/"
         self.headers = {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language': 'en-US,en;q=0.9',
