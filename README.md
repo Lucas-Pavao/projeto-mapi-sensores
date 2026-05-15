@@ -1,131 +1,98 @@
-# Sistema de Monitoramento Ambiental Distribuído (projeto-mapi)
+# Projeto MAPI - Monitoramento de Águas e Pluviometria Inteligente
 
-Este projeto, batizado internamente como `projeto-mapi`, é um sistema de monitoramento ambiental distribuído que simula uma arquitetura de Edge/Fog Computing. Ele foi projetado para coletar, processar e unificar dados meteorológicos e hidrológicos de múltiplas fontes em tempo real, integrando agora comunicação via protocolo **MQTT**.
+O **Projeto MAPI** é uma solução de IoT industrial e ambiental focada no monitoramento em tempo real de níveis de rios e índices pluviométricos. O sistema utiliza o conceito de **Virtualização de Sensores** e **Fog Computing (Computação em Névoa)** para integrar dados de múltiplas fontes governamentais (ANA e APAC) e disponibilizá-los via protocolo MQTT para plataformas de análise e dashboards.
 
-## Tabela de Conteúdos
-- [Sobre o Projeto](#sobre-o-projeto)
-- [Principais Características](#principais-características)
-- [Arquitetura e Tecnologias](#arquitetura-e-tecnologias)
-- [Estrutura do Projeto](#estrutura-do-projeto)
-- [Como Começar](#como-começar)
-  - [Pré-requisitos](#pré-requisitos)
-  - [Instalação](#instalação)
-- [Configuração](#configuração)
-  - [MQTT](#mqtt)
-  - [API da ANA](#api-da-ana)
-- [Como Executar](#como-executar)
+---
 
-## Sobre o Projeto
+## 🏗️ Arquitetura do Sistema
 
-O sistema utiliza um modelo de **Sensores Virtuais Paralelos**. Cada ponto de monitoramento e cada tipo de dado funciona como um "nó" independente, executando sua coleta de forma paralela e publicando os resultados em um broker MQTT.
+O projeto segue um modelo de camadas para garantir resiliência e modularidade:
 
-- **Multithreading**: Cada sensor virtual roda em uma thread independente, garantindo alta disponibilidade e resiliência a falhas de rede.
-- **Comunicação MQTT**: Todos os dados coletados são publicados em tópicos estruturados, permitindo a integração fácil com dashboards (como Node-RED ou Grafana) e outros sistemas.
-- **Modularidade**: Divisão clara entre coletores de dados, gerenciamento de sensores e serviços de comunicação.
+1.  **Camada de Coleta (Collectors):** Agents especializados em fazer scraping ou consumir APIs REST de órgãos oficiais.
+2.  **Camada de Controle (Fog/Edge):** Gerencia sensores virtuais, aplica lógica de detecção de anomalias e ajusta a frequência de amostragem dinamicamente.
+3.  **Camada de Serviços:** Gerenciamento de comunicações (MQTT) e autenticação segura (OAuth).
+4.  **Orquestração:** Gerenciamento de concorrência via Threads para monitoramento simultâneo de múltiplas cidades e estações.
 
-## Principais Características
+---
 
-- **3 Malhas de Sensores Virtuais**:
-  1. **Clima (APAC Meteorologia 24h)**: Temperatura, umidade do ar, radiação solar e umidade do solo.
-  2. **Pluviômetros (APAC Cemaden)**: Precipitação acumulada e dados geotécnicos.
-  3. **Telemétricos (ANA)**: Nível de rios, vazão e chuva adotada via API REST.
-- **Protocolo MQTT**: Publicação automática no tópico `projeto-mapi/sensores/{ID_SENSOR}`.
-- **Refatoração Orientada a Objetos**: Utilização de classes base para coletores, minimizando duplicação de código.
+## 📂 Estrutura de Arquivos e Funções
 
-## Arquitetura e Tecnologias
+### 🌍 `/src` (Core do Sistema)
+*   **`main.py`**: O orquestrador central. Inicializa os serviços, define as cidades e estações alvo, e provisiona os sensores virtuais em threads separadas para garantir execução paralela.
 
-- **Linguagem**: Python 3.x
-- **Bibliotecas Principais**:
-    - `paho-mqtt`: Comunicação com o broker MQTT.
-    - `requests`: Requisições HTTP/REST para as APIs.
-    - `beautifulsoup4`: Parsing de dados quando necessário.
-    - `python-dotenv`: Gerenciamento de variáveis de ambiente.
-    - `threading`: Execução paralela dos sensores.
+### 📡 `/src/collectors` (Agentes de Coleta)
+Responsáveis por buscar dados brutos e normalizá-los.
+*   **`base_collector.py`**: Classe base para coletores APAC. Contém a lógica de extração de JSON embutido em HTML usando BeautifulSoup e filtragem por cidade.
+*   **`apac_cemaden_collector.py`**: Coleta dados de pluviômetros (chuva) da rede Cemaden via portal da APAC.
+*   **`apac_meteorologia24h_collector.py`**: Coleta dados meteorológicos completos (temperatura, umidade, vento, pressão) das últimas 24h.
+*   **`ana_rest_collector.py`**: Interface com o WebService da ANA. Gerencia o consumo de dados de telemetria (nível, vazão e chuva) usando tokens de autenticação.
 
-## Estrutura do Projeto
+### ⚙️ `/src/controllers` (Lógica de Negócio)
+*   **`sensor_manager.py` (VirtualSensor)**: A inteligência do sistema. Representa um sensor físico no mundo virtual.
+    *   **Lógica de Fog:** Mantém um histórico de leituras para calcular médias móveis.
+    *   **Frequência Adaptativa:** Se detectar uma anomalia (ex: chuva 50% acima da média), aumenta automaticamente a frequência de coleta para prover dados mais precisos em situações críticas.
+    *   **Gestão de Energia:** Simula o consumo de bateria para monitoramento de vida útil do "dispositivo".
 
-```
-projeto-mapi/
-├── requirements.txt
-├── src/
-│   ├── main.py                 # Ponto de entrada do sistema
-│   ├── collectors/
-│   │   ├── base_collector.py   # Lógica base para coletores APAC
-│   │   ├── ana_rest_collector.py
-│   │   ├── apac_cemaden_collector.py
-│   │   └── apac_meteorologia24h_collector.py
-│   ├── controllers/
-│   │   └── sensor_manager.py   # Gerenciamento do ciclo de vida do sensor
-│   ├── services/
-│   │   ├── auth_manager.py     # Autenticação (ANA)
-│   │   └── mqtt_manager.py     # Cliente MQTT
-│   └── utils/
-│       └── text_utils.py       # Tratamento de strings e acentos
-└── ...
-```
+### 🛠️ `/src/services` (Infraestrutura)
+*   **`mqtt_manager.py`**: Gerencia a conexão com o Broker MQTT (HiveMQ por padrão). Converte os dados processados em JSON e publica nos tópicos correspondentes.
+*   **`auth_manager.py`**: Gerencia o ciclo de vida dos tokens OAuth para a API da ANA, garantindo renovação automática antes da expiração.
 
-## Como Começar
+### 🧰 `/src/utils`
+*   **`text_utils.py`**: Funções auxiliares, como limpeza de strings e remoção de acentos para facilitar buscas e filtros.
+
+---
+
+## 🧠 Lógica de Fog Computing (Inteligência na Borda)
+
+O grande diferencial do MAPI é não ser apenas um retransmissor de dados. Cada `VirtualSensor` opera com autonomia:
+1.  **Monitoramento Passivo:** Coleta dados em intervalos longos (ex: 5 min) para economizar recursos.
+2.  **Detecção de Eventos:** Ao identificar um aumento súbito nos índices (Anomalia), o sensor entra em "Modo Crítico".
+3.  **Adaptação:** A frequência de coleta aumenta para intervalos curtos (ex: 30 seg), permitindo uma resposta mais rápida a desastres naturais como inundações.
+4.  **Normalização:** Assim que os níveis estabilizam, o sensor retorna à sua frequência de operação padrão.
+
+---
+
+## 🚀 Como Executar
 
 ### Pré-requisitos
-- Python 3.8+
-- Broker MQTT (Ex: HiveMQ, Mosquitto ou local)
+*   Python 3.10+
+*   Pip (gerenciador de pacotes)
 
 ### Instalação
-
-1. **Clone o repositório:**
-   ```sh
-   git clone <url-do-seu-repositorio>
-   cd projeto-mapi
-   ```
-
-2. **Crie e ative um ambiente virtual:**
-   ```sh
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   ```
-
-3. **Instale as dependências:**
-   ```sh
+1. Clone o repositório.
+2. Instale as dependências:
+   ```bash
    pip install -r requirements.txt
    ```
+3. Configure o arquivo `.env` baseado no `.env.example`:
+   ```env
+   ANA_IDENTIFICADOR=seu_id
+   ANA_SENHA=sua_senha
+   MQTT_BROKER=broker.hivemq.com
+   ```
 
-## Configuração
-
-O sistema utiliza variáveis de ambiente para todas as suas configurações críticas. Crie um arquivo `.env` na raiz do projeto baseando-se no arquivo `.env.example`.
-
-### Variáveis de Ambiente (.env)
-
-```ini
-# APAC Config
-APAC_BASE_URL=http://dados.apac.pe.gov.br:41120
-APAC_CEMADEN_ENDPOINT=cemaden
-APAC_METEOROLOGIA_ENDPOINT=meteorologia24h
-
-# ANA Config
-ANA_AUTH_URL=https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/OAUth/v1
-ANA_BASE_URL=https://www.ana.gov.br/hidrowebservice/EstacoesTelemetricas/HidroinfoanaSerieTelemetricaAdotada/v1
-ANA_IDENTIFICADOR="seu_identificador"
-ANA_SENHA="sua_senha"
-
-# MQTT Config
-MQTT_BROKER=broker.hivemq.com
-MQTT_PORT=1883
-MQTT_TOPIC_PREFIX=projeto-mapi/sensores
-```
-
-*Para obter credenciais da ANA, envie e-mail para hidro@ana.gov.br.*
-
-## Como Executar
-
-Inicie o sistema com:
-```sh
+### Execução
+Inicie a malha de sensores:
+```bash
 python src/main.py
 ```
 
-O sistema agora opera em **Modo Automático (Malha Completa)**, o que significa que ele irá:
-1. Conectar ao Broker MQTT configurado no `.env`.
-2. Provisionar automaticamente sensores para **APAC (Meteorologia + Cemaden)** e **ANA (Telemetria)**.
-3. Iniciar threads independentes para cada sensor das cidades e estações alvo.
-4. Coletar, processar (Fog Logic) e publicar dados em tempo real.
-5. Exibir logs detalhados no console informando a origem de cada dado.
+---
 
+## 📡 Tópicos MQTT
+Os dados são publicados seguindo o padrão:
+`projeto-mapi/sensores/[ID_DO_SENSOR]`
+
+**Exemplo de Payload:**
+```json
+{
+  "id_sensor": "APAC-PLUVIO-RECIFE",
+  "timestamp_coleta": "2026-05-14T10:30:00",
+  "status_bateria": "98.5%",
+  "fog_valor_referencia": 12.5,
+  "dados_originais": { ... }
+}
+```
+
+---
+**Desenvolvido para monitoramento inteligente e prevenção de desastres.**
