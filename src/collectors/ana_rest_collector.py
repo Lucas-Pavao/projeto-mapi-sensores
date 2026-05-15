@@ -38,7 +38,8 @@ class AnaRestCollector:
         }
 
         try:
-            response = requests.get(url, params=params, headers=headers, cookies=cookies)
+            # Adicionado timeout de 20 segundos para a coleta de dados
+            response = requests.get(url, params=params, headers=headers, cookies=cookies, timeout=20)
 
             if response.status_code == 400:
                 print(f"Erro 400 - Verifique se os nomes dos parâmetros estão corretos: {response.text}[cite: 485].")
