@@ -26,8 +26,6 @@ def main():
     sensores_ativos = []
     threads = []
     
-    cidades_alvo = ["RECIFE", "OLINDA", "JABOATAO DOS GUARARAPES"]
-
     # ==========================================
     # 2. DEPLOY DOS COLETORES (MALHA COMPLETA)
     # ==========================================
@@ -39,22 +37,66 @@ def main():
     print("\n[VIRTUALIZATION] Provisionando sensores APAC via Scraping JSON...")
     print("  -> Fontes: Meteorologia 24h e Pluviômetros Cemaden")
     
-    for cidade in cidades_alvo:
-        # Meteorologia
-        id_m = f"APAC-METEO-{cidade.split()[0]}"
-        s_m = VirtualSensor(coletor_meteorologia, id_m, mqtt_manager=mqtt, intervalo_segundos=60)
-        sensores_ativos.append(s_m)
-        t_m = threading.Thread(target=s_m.iniciar_monitoramento, kwargs={'filtro_cidade': cidade}, daemon=True)
-        t_m.start()
-        threads.append(t_m)
+    rmr_cidades = [
+        "RECIFE", "OLINDA", "JABOATAO DOS GUARARAPES", "PAULISTA", 
+        "CAMARAGIBE", "CABO DE SANTO AGOSTINHO", "SAO LOURENCO DA MATA", 
+        "MORENO", "IGARASSU", "IPOJUCA"
+    ]
 
-        # Pluviômetros
-        id_p = f"APAC-PLUVIO-{cidade.split()[0]}"
-        s_p = VirtualSensor(coletor_cemaden, id_p, mqtt_manager=mqtt, intervalo_segundos=60)
-        sensores_ativos.append(s_p)
-        t_p = threading.Thread(target=s_p.iniciar_monitoramento, kwargs={'filtro_cidade': cidade}, daemon=True)
-        t_p.start()
-        threads.append(t_p)
+    def deploy_sensores_apac(coletor, prefixo_id):
+        # Busca todas as estações disponíveis
+        todas_estacoes = coletor.buscar_dados()
+        if not todas_estacoes:
+            return
+
+        from src.utils.text_utils import remover_acentos
+        
+        estacoes_rmr = []
+        for e in todas_estacoes:
+            muni = remover_acentos(e.get('municipio', '').upper())
+            nome = remover_acentos(e.get('estacao_nome', '').upper())
+            
+            # Filtro por cidade
+            na_rmr = any(remover_acentos(c) in muni or remover_acentos(c) in nome for c in rmr_cidades)
+            
+            # Casos especiais: Estações que sabemos ser da RMR mas estão sem cidade no JSON
+            termos_especiais = ["SEDE", "CASTELO BRANCO", "COMPESA", "IMBIRIBEIRA", "NOVA DESCOBERTA", "ALDEIA"]
+            if muni == "NAO INFORMADA" or muni == "":
+                if any(t in nome for t in termos_especiais):
+                    na_rmr = True
+
+            if na_rmr:
+                estacoes_rmr.append(e)
+
+        # Remove duplicatas (mesmo nome na mesma cidade)
+        vistas = set()
+        for e in estacoes_rmr:
+            key = (e['estacao_nome'], e['municipio'])
+            if key in vistas:
+                continue
+            vistas.add(key)
+
+            # Criar ID amigável: PREFIXO-CIDADE-ESTACAO
+            cidade_id = remover_acentos(e['municipio'].split()[0].upper()) if e['municipio'] != "Não informada" else "RMR"
+            
+            # Limpa o nome da estação para o ID
+            nome_limpo = e['estacao_nome'].replace("[APAC]", "").replace("[CEMADEN]", "").replace("[", "").replace("]", "").strip()
+            nome_id = remover_acentos(nome_limpo.split()[0].upper())
+            id_sensor = f"{prefixo_id}-{cidade_id}-{nome_id}"
+
+            s = VirtualSensor(coletor, id_sensor, mqtt_manager=mqtt, intervalo_segundos=60)
+            sensores_ativos.append(s)
+            t = threading.Thread(
+                target=s.iniciar_monitoramento, 
+                kwargs={'filtro_estacao': e['estacao_nome']}, 
+                daemon=True
+            )
+            t.start()
+            threads.append(t)
+            # print(f"  [+] Sensor {id_sensor} provisionado para {e['estacao_nome']} ({e['municipio']})")
+
+    deploy_sensores_apac(coletor_meteorologia, "APAC-METEO")
+    deploy_sensores_apac(coletor_cemaden, "APAC-PLUVIO")
 
     # --- ANA (Agência Nacional de Águas) ---
     coletor_ana = AnaRestCollector(auth)
