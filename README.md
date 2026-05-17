@@ -1,98 +1,46 @@
-# Projeto MAPI - Monitoramento de Águas e Pluviometria Inteligente
+# Projeto MAPI - Monitoramento e Fog Computing 📡🐍
 
-O **Projeto MAPI** é uma solução de IoT industrial e ambiental focada no monitoramento em tempo real de níveis de rios e índices pluviométricos. O sistema utiliza o conceito de **Virtualização de Sensores** e **Fog Computing (Computação em Névoa)** para integrar dados de múltiplas fontes governamentais (ANA e APAC) e disponibilizá-los via protocolo MQTT para plataformas de análise e dashboards.
+O **Projeto MAPI (Python)** atua como a camada de **Fog Computing (Computação em Névoa)** e virtualização de sensores da solução MAPI. Este middleware é responsável por extrair, normalizar e processar dados ambientais de diversas fontes oficiais, transformando-os em fluxos de dados inteligentes via MQTT.
 
----
+## 📋 O que é o projeto?
 
-## 🏗️ Arquitetura do Sistema
+O projeto funciona como uma malha de **Sensores Virtuais**. Em vez de depender apenas de hardware físico caro, o sistema "virtualiza" estações de monitoramento governamentais (ANA e APAC), coletando seus dados em tempo real e aplicando lógica de borda para detectar anomalias antes mesmo dos dados chegarem à nuvem.
 
-O projeto segue um modelo de camadas para garantir resiliência e modularidade:
+## 🏗️ Arquitetura
 
-1.  **Camada de Coleta (Collectors):** Agents especializados em fazer scraping ou consumir APIs REST de órgãos oficiais.
-2.  **Camada de Controle (Fog/Edge):** Gerencia sensores virtuais, aplica lógica de detecção de anomalias e ajusta a frequência de amostragem dinamicamente.
-3.  **Camada de Serviços:** Gerenciamento de comunicações (MQTT) e autenticação segura (OAuth).
-4.  **Orquestração:** Gerenciamento de concorrência via Threads para monitoramento simultâneo de múltiplas cidades e estações.
+O sistema utiliza uma arquitetura modular baseada em **Agentes e Controladores**, projetada para alta resiliência e concorrência:
 
----
+1.  **Coletores (Collectors):** Módulos especializados em "scraping" ou consumo de APIs REST. Cada órgão (ANA, APAC) possui seu próprio coletor que conhece as nuances da extração de dados brutos.
+2.  **Sensores Virtuais (VirtualSensors):** A inteligência central. Cada sensor virtual representa um ponto de monitoramento geográfico. Ele decide quando aumentar a frequência de coleta baseado nos dados recebidos (Lógica de Fog).
+3.  **Gerenciador de Mensagens (MQTT Manager):** Responsável por formatar os dados processados em JSON e publicá-los em tópicos MQTT para consumo da API Spring Boot.
+4.  **Orquestrador (Main):** Gerencia o ciclo de vida de múltiplos sensores virtuais rodando em threads paralelas, permitindo o monitoramento simultâneo de várias bacias hidrográficas e cidades.
 
-## 📂 Estrutura de Arquivos e Funções
+## 📂 Estrutura do Projeto
 
-### 🌍 `/src` (Core do Sistema)
-*   **`main.py`**: O orquestrador central. Inicializa os serviços, define as cidades e estações alvo, e provisiona os sensores virtuais em threads separadas para garantir execução paralela.
-
-### 📡 `/src/collectors` (Agentes de Coleta)
-Responsáveis por buscar dados brutos e normalizá-los.
-*   **`base_collector.py`**: Classe base para coletores APAC. Contém a lógica de extração de JSON embutido em HTML usando BeautifulSoup e filtragem por cidade.
-*   **`apac_cemaden_collector.py`**: Coleta dados de pluviômetros (chuva) da rede Cemaden via portal da APAC.
-*   **`apac_meteorologia24h_collector.py`**: Coleta dados meteorológicos completos (temperatura, umidade, vento, pressão) das últimas 24h.
-*   **`ana_rest_collector.py`**: Interface com o WebService da ANA. Gerencia o consumo de dados de telemetria (nível, vazão e chuva) usando tokens de autenticação.
-
-### ⚙️ `/src/controllers` (Lógica de Negócio)
-*   **`sensor_manager.py` (VirtualSensor)**: A inteligência do sistema. Representa um sensor físico no mundo virtual.
-    *   **Lógica de Fog:** Mantém um histórico de leituras para calcular médias móveis.
-    *   **Frequência Adaptativa:** Se detectar uma anomalia (ex: chuva 50% acima da média), aumenta automaticamente a frequência de coleta para prover dados mais precisos em situações críticas.
-    *   **Gestão de Energia:** Simula o consumo de bateria para monitoramento de vida útil do "dispositivo".
-
-### 🛠️ `/src/services` (Infraestrutura)
-*   **`mqtt_manager.py`**: Gerencia a conexão com o Broker MQTT (HiveMQ por padrão). Converte os dados processados em JSON e publica nos tópicos correspondentes.
-*   **`auth_manager.py`**: Gerencia o ciclo de vida dos tokens OAuth para a API da ANA, garantindo renovação automática antes da expiração.
-
-### 🧰 `/src/utils`
-*   **`text_utils.py`**: Funções auxiliares, como limpeza de strings e remoção de acentos para facilitar buscas e filtros.
-
----
-
-## 🧠 Lógica de Fog Computing (Inteligência na Borda)
-
-O grande diferencial do MAPI é não ser apenas um retransmissor de dados. Cada `VirtualSensor` opera com autonomia:
-1.  **Monitoramento Passivo:** Coleta dados em intervalos longos (ex: 5 min) para economizar recursos.
-2.  **Detecção de Eventos:** Ao identificar um aumento súbito nos índices (Anomalia), o sensor entra em "Modo Crítico".
-3.  **Adaptação:** A frequência de coleta aumenta para intervalos curtos (ex: 30 seg), permitindo uma resposta mais rápida a desastres naturais como inundações.
-4.  **Normalização:** Assim que os níveis estabilizam, o sensor retorna à sua frequência de operação padrão.
-
----
-
-## 🚀 Como Executar
-
-### Pré-requisitos
-*   Python 3.10+
-*   Pip (gerenciador de pacotes)
-
-### Instalação
-1. Clone o repositório.
-2. Instale as dependências:
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Configure o arquivo `.env` baseado no `.env.example`:
-   ```env
-   ANA_IDENTIFICADOR=seu_id
-   ANA_SENHA=sua_senha
-   MQTT_BROKER=broker.hivemq.com
-   ```
-
-### Execução
-Inicie a malha de sensores:
-```bash
-python src/main.py
+```text
+src/
+├── collectors/      # Agentes de extração (ANA, APAC, CEMADEN)
+├── controllers/     # Lógica do VirtualSensor e gerenciamento de anomalias
+├── services/        # Serviços de infraestrutura (MQTT, Auth OAuth2 para ANA)
+├── utils/           # Funções auxiliares de processamento de texto e dados
+└── main.py          # Ponto de entrada e orquestração de threads
 ```
 
+## ⚙️ Como o projeto funciona?
+
+1.  **Coleta Inteligente:** O sistema inicia múltiplos `VirtualSensors` em threads separadas. Cada um busca dados de fontes como o WebService da ANA ou o portal da APAC.
+2.  **Lógica de Fog Computing:** Se um sensor detecta uma anomalia (ex: nível de rio subindo rápido ou chuva forte), ele entra em "Modo Crítico" e aumenta automaticamente sua frequência de polling (ex: de 10 minutos para 30 segundos).
+3.  **Processamento de Borda:** Os dados são limpos e normalizados localmente, simulando o comportamento de um dispositivo IoT físico (incluindo status de bateria e telemetria).
+4.  **Publicação MQTT:** O resultado é enviado para um Broker MQTT. A API central (Java) escuta esses tópicos e persiste os dados para o dashboard.
+
+## 🚀 Tecnologias Utilizadas
+
+- **Python 3.12+**
+- **MQTT (Paho-MQTT)**
+- **BeautifulSoup4** (Scraping de dados governamentais)
+- **Requests** (Consumo de APIs)
+- **Threading** (Concorrência para múltiplos sensores)
+- **OAuth2** (Autenticação para serviços oficiais)
+
 ---
-
-## 📡 Tópicos MQTT
-Os dados são publicados seguindo o padrão:
-`projeto-mapi/sensores/[ID_DO_SENSOR]`
-
-**Exemplo de Payload:**
-```json
-{
-  "id_sensor": "APAC-PLUVIO-RECIFE",
-  "timestamp_coleta": "2026-05-14T10:30:00",
-  "status_bateria": "98.5%",
-  "fog_valor_referencia": 12.5,
-  "dados_originais": { ... }
-}
-```
-
----
-**Desenvolvido para monitoramento inteligente e prevenção de desastres.**
+**Camada de inteligência distribuída para prevenção de desastres.**
