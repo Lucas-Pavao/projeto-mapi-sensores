@@ -37,7 +37,7 @@ def main():
     print("\n[VIRTUALIZATION] Provisionando sensores APAC via Scraping JSON...")
     print("  -> Fontes: Meteorologia 24h e Pluviômetros Cemaden")
     
-    def deploy_sensores_apac(coletor, prefixo_id):
+    def deploy_sensores_apac(coletor, prefixo_id, apenas_rmr=True):
         # Busca todas as estações disponíveis
         todas_estacoes = coletor.buscar_dados()
         if not todas_estacoes:
@@ -45,17 +45,17 @@ def main():
 
         from src.utils.text_utils import is_rmr, normalizar_texto
         
-        estacoes_rmr = []
+        estacoes_alvo = []
         for e in todas_estacoes:
             municipio = e.get('municipio', '')
             nome_estacao = e.get('estacao_nome', '')
             
-            if is_rmr(municipio, nome_estacao):
-                estacoes_rmr.append(e)
+            if not apenas_rmr or is_rmr(municipio, nome_estacao):
+                estacoes_alvo.append(e)
 
         # Remove duplicatas (mesmo nome na mesma cidade)
         vistas = set()
-        for e in estacoes_rmr:
+        for e in estacoes_alvo:
             key = (e['estacao_nome'], e['municipio'])
             if key in vistas:
                 continue
@@ -80,8 +80,8 @@ def main():
             t.start()
             threads.append(t)
 
-    deploy_sensores_apac(coletor_meteorologia, "APAC-METEO")
-    deploy_sensores_apac(coletor_cemaden, "APAC-PLUVIO")
+    deploy_sensores_apac(coletor_meteorologia, "APAC-METEO", apenas_rmr=False)
+    deploy_sensores_apac(coletor_cemaden, "APAC-PLUVIO", apenas_rmr=True)
 
     # --- ANA (Agência Nacional de Águas) ---
     coletor_ana = AnaRestCollector(auth)
