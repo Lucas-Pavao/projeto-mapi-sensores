@@ -93,7 +93,7 @@ class AnaRestCollector:
                     item["Bacia_Nome"] = metadados.get("Bacia_Nome")
                     item["Municipio_Nome"] = metadados.get("Municipio_Nome")
 
-            return dados_medicao
+            return dados_medicao.get("items", [])
 
         except Exception as e:
             print(f"Erro ao coletar dados REST da ANA: {e}")

@@ -37,35 +37,20 @@ def main():
     print("\n[VIRTUALIZATION] Provisionando sensores APAC via Scraping JSON...")
     print("  -> Fontes: Meteorologia 24h e Pluviômetros Cemaden")
     
-    rmr_cidades = [
-        "RECIFE", "OLINDA", "JABOATAO DOS GUARARAPES", "PAULISTA", 
-        "CAMARAGIBE", "CABO DE SANTO AGOSTINHO", "SAO LOURENCO DA MATA", 
-        "MORENO", "IGARASSU", "IPOJUCA"
-    ]
-
     def deploy_sensores_apac(coletor, prefixo_id):
         # Busca todas as estações disponíveis
         todas_estacoes = coletor.buscar_dados()
         if not todas_estacoes:
             return
 
-        from src.utils.text_utils import remover_acentos
+        from src.utils.text_utils import is_rmr, normalizar_texto
         
         estacoes_rmr = []
         for e in todas_estacoes:
-            muni = remover_acentos(e.get('municipio', '').upper())
-            nome = remover_acentos(e.get('estacao_nome', '').upper())
+            municipio = e.get('municipio', '')
+            nome_estacao = e.get('estacao_nome', '')
             
-            # Filtro por cidade
-            na_rmr = any(remover_acentos(c) in muni or remover_acentos(c) in nome for c in rmr_cidades)
-            
-            # Casos especiais: Estações que sabemos ser da RMR mas estão sem cidade no JSON
-            termos_especiais = ["SEDE", "CASTELO BRANCO", "COMPESA", "IMBIRIBEIRA", "NOVA DESCOBERTA", "ALDEIA"]
-            if muni == "NAO INFORMADA" or muni == "":
-                if any(t in nome for t in termos_especiais):
-                    na_rmr = True
-
-            if na_rmr:
+            if is_rmr(municipio, nome_estacao):
                 estacoes_rmr.append(e)
 
         # Remove duplicatas (mesmo nome na mesma cidade)
@@ -77,11 +62,12 @@ def main():
             vistas.add(key)
 
             # Criar ID amigável: PREFIXO-CIDADE-ESTACAO
-            cidade_id = remover_acentos(e['municipio'].split()[0].upper()) if e['municipio'] != "Não informada" else "RMR"
+            cidade = e['municipio']
+            cidade_id = normalizar_texto(cidade).split()[0] if cidade and cidade != "Não informada" else "RMR"
             
             # Limpa o nome da estação para o ID
             nome_limpo = e['estacao_nome'].replace("[APAC]", "").replace("[CEMADEN]", "").replace("[", "").replace("]", "").strip()
-            nome_id = remover_acentos(nome_limpo.split()[0].upper())
+            nome_id = normalizar_texto(nome_limpo).split()[0]
             id_sensor = f"{prefixo_id}-{cidade_id}-{nome_id}"
 
             s = VirtualSensor(coletor, id_sensor, mqtt_manager=mqtt, intervalo_segundos=60)
@@ -93,7 +79,6 @@ def main():
             )
             t.start()
             threads.append(t)
-            # print(f"  [+] Sensor {id_sensor} provisionado para {e['estacao_nome']} ({e['municipio']})")
 
     deploy_sensores_apac(coletor_meteorologia, "APAC-METEO")
     deploy_sensores_apac(coletor_cemaden, "APAC-PLUVIO")
