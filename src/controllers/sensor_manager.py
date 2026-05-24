@@ -150,7 +150,7 @@ class VirtualSensor:
         self.mqtt_manager.publish(topic, payload)
         
         # Log mais específico sobre a origem
-        origem = "Agência Nacional de Águas (ANA)" if "ANA" in self.id_sensor else "APAC - Pernambuco"
+        origem = "Agência Nacional de Águas (ANA)" if self.id_sensor.startswith("ANA-") else "APAC - Pernambuco"
         print(f"[MQTT | {self.id_sensor}] Dados enviados. Fonte: {origem}.")
 
     def parar(self):
