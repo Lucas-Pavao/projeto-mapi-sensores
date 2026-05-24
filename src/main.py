@@ -88,9 +88,17 @@ def main():
     
     # Configuração das estações: ID -> Nome Amigável (para o ID do sensor)
     estacoes_ana = {
-        "39187800": "CAPIBARIBE",
-        "39590000": "BARREIROS",
-        "39540000": "AGRESTINA"
+        # Capibaribe e Afluentes
+        "39187800": "CAPIBARIBE-SLM",   # São Lourenço da Mata II
+        "39187900": "MATRIZ-DA-LUZ",    # São Lourenço (Açude)
+        "39145000": "LIMOEIRO",         # Limoeiro (Montante Capibaribe)
+        "39084000": "CARICE-ITAMBE",    # Itambé (Divisa PE/PB)
+        
+        # Jaboatão, Pirapama e Litoral Sul
+        "39170000": "VITORIA-S-ANTAO",  # Vitória de Santo Antão
+        "39370100": "MARANHAO-IPOJUCA", # Ipojuca (Engenho Maranhão)
+        "39590000": "BARREIROS",        # Barreiros
+        "39540000": "AGRESTINA"         # Agrestina (Capivara)
     }
     data_hoje = time.strftime("%Y-%m-%d")
 
