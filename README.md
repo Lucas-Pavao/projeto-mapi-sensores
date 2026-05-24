@@ -1,46 +1,129 @@
-# Projeto MAPI - Monitoramento e Fog Computing 📡🐍
+# Projeto MAPI - Monitoramento de Águas e Pluviometria Inteligente 📡🌊
 
-O **Projeto MAPI (Python)** atua como a camada de **Fog Computing (Computação em Névoa)** e virtualização de sensores da solução MAPI. Este middleware é responsável por extrair, normalizar e processar dados ambientais de diversas fontes oficiais, transformando-os em fluxos de dados inteligentes via MQTT.
+![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Status](https://img.shields.io/badge/status-active-brightgreen)
+![Architecture](https://img.shields.io/badge/architecture-Fog%20Computing-orange)
 
-## 📋 O que é o projeto?
+O **Projeto MAPI** é uma solução avançada de **Fog Computing (Computação em Névoa)** e virtualização de sensores voltada para o monitoramento hidrometeorológico. Ele atua como um middleware inteligente que extrai, normaliza e processa dados ambientais de órgãos oficiais (ANA e APAC), transformando-os em fluxos de dados em tempo real via protocolo MQTT.
 
-O projeto funciona como uma malha de **Sensores Virtuais**. Em vez de depender apenas de hardware físico caro, o sistema "virtualiza" estações de monitoramento governamentais (ANA e APAC), coletando seus dados em tempo real e aplicando lógica de borda para detectar anomalias antes mesmo dos dados chegarem à nuvem.
+## 📋 Descrição Geral
 
-## 🏗️ Arquitetura
+O sistema funciona através de uma malha de **Sensores Virtuais**. Em vez de depender exclusivamente de hardware físico, o MAPI "virtualiza" estações de monitoramento governamentais, aplicando lógica de borda para detectar anomalias (como subida rápida de rios ou chuvas intensas). 
 
-O sistema utiliza uma arquitetura modular baseada em **Agentes e Controladores**, projetada para alta resiliência e concorrência:
+Diferente de uma coleta simples, o MAPI implementa **Inteligência de Borda**: quando uma anomalia é detectada, o sensor virtual aumenta automaticamente sua frequência de coleta (polling), garantindo dados granulares em momentos críticos sem sobrecarregar a rede em períodos de normalidade.
 
-1.  **Coletores (Collectors):** Módulos especializados em "scraping" ou consumo de APIs REST. Cada órgão (ANA, APAC) possui seu próprio coletor que conhece as nuances da extração de dados brutos.
-2.  **Sensores Virtuais (VirtualSensors):** A inteligência central. Cada sensor virtual representa um ponto de monitoramento geográfico. Ele decide quando aumentar a frequência de coleta baseado nos dados recebidos (Lógica de Fog).
-3.  **Gerenciador de Mensagens (MQTT Manager):** Responsável por formatar os dados processados em JSON e publicá-los em tópicos MQTT para consumo da API Spring Boot.
-4.  **Orquestrador (Main):** Gerencia o ciclo de vida de múltiplos sensores virtuais rodando em threads paralelas, permitindo o monitoramento simultâneo de várias bacias hidrográficas e cidades.
+## ✨ Funcionalidades Principais
 
-## 📂 Estrutura do Projeto
+- **Virtualização Multi-Fonte:** Integração nativa com:
+  - **APAC:** Scraping de dados meteorológicos e pluviométricos (Cemaden).
+  - **ANA:** Integração com WebService REST via autenticação OAuth2.
+- **Lógica de Fog Computing:** Adaptação dinâmica do intervalo de coleta baseada no comportamento dos dados.
+- **Processamento de Borda:** Limpeza, normalização e "achatamento" (flattening) de payloads complexos antes do envio.
+- **Simulação de Telemetria:** Cada sensor virtual simula status de bateria, ciclos de carga/descarga e telemetria de sinal.
+- **Concorrência Escalável:** Arquitetura baseada em threads que permite monitorar centenas de estações simultaneamente.
+- **Integração MQTT:** Publicação de dados em tópicos hierárquicos para fácil consumo por dashboards ou sistemas de alerta.
+
+## 🛠️ Tecnologias Utilizadas
+
+### Core
+- **Python 3.12+**: Linguagem base do projeto.
+- **Threading**: Para execução paralela de sensores virtuais.
+
+### Integração e Dados
+- **Requests & BeautifulSoup4**: Extração e scraping de dados governamentais.
+- **Paho-MQTT**: Protocolo de comunicação leve para IoT.
+- **XMLtoDict**: Conversão de respostas SOAP/XML da ANA para formatos amigáveis.
+- **Python-Dotenv**: Gerenciamento de variáveis de ambiente.
+
+## 🏗️ Arquitetura e Estrutura de Pastas
+
+O projeto segue um padrão modular baseado em agentes:
 
 ```text
-src/
-├── collectors/      # Agentes de extração (ANA, APAC, CEMADEN)
-├── controllers/     # Lógica do VirtualSensor e gerenciamento de anomalias
-├── services/        # Serviços de infraestrutura (MQTT, Auth OAuth2 para ANA)
-├── utils/           # Funções auxiliares de processamento de texto e dados
-└── main.py          # Ponto de entrada e orquestração de threads
+projeto-mapi/
+├── src/
+│   ├── collectors/      # Agentes de extração (ANA, APAC, Base)
+│   ├── controllers/     # Lógica do VirtualSensor e gerenciamento de anomalias
+│   ├── services/        # Infraestrutura (MQTT, Auth Manager)
+│   ├── utils/           # Processamento de texto e normalização
+│   └── main.py          # Orquestrador e ponto de entrada
+├── tests/               # Testes unitários e de integração
+├── .env.example         # Template de configuração
+├── AGENTS.md            # Documentação detalhada dos agentes
+└── README.md            # Documentação principal
 ```
 
-## ⚙️ Como o projeto funciona?
+## ⚙️ Pré-requisitos
 
-1.  **Coleta Inteligente:** O sistema inicia múltiplos `VirtualSensors` em threads separadas. Cada um busca dados de fontes como o WebService da ANA ou o portal da APAC.
-2.  **Lógica de Fog Computing:** Se um sensor detecta uma anomalia (ex: nível de rio subindo rápido ou chuva forte), ele entra em "Modo Crítico" e aumenta automaticamente sua frequência de polling (ex: de 10 minutos para 30 segundos).
-3.  **Processamento de Borda:** Os dados são limpos e normalizados localmente, simulando o comportamento de um dispositivo IoT físico (incluindo status de bateria e telemetria).
-4.  **Publicação MQTT:** O resultado é enviado para um Broker MQTT. A API central (Java) escuta esses tópicos e persiste os dados para o dashboard.
+Antes de iniciar, você precisará ter instalado:
+- **Python 3.12** ou superior.
+- **Broker MQTT** (Ex: Mosquitto local ou brokers públicos como HiveMQ/EMQX).
+- **Pip** (Gerenciador de pacotes do Python).
 
-## 🚀 Tecnologias Utilizadas
+## 🚀 Como Executar o Projeto
 
-- **Python 3.12+**
-- **MQTT (Paho-MQTT)**
-- **BeautifulSoup4** (Scraping de dados governamentais)
-- **Requests** (Consumo de APIs)
-- **Threading** (Concorrência para múltiplos sensores)
-- **OAuth2** (Autenticação para serviços oficiais)
+### 1. Clonar o Repositório
+```bash
+git clone https://github.com/seu-usuario/projeto-mapi.git
+cd projeto-mapi
+```
+
+### 2. Configurar Ambiente Virtual
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# ou
+.venv\Scripts\activate     # Windows
+```
+
+### 3. Instalar Dependências
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configurar Variáveis de Ambiente
+Copie o arquivo `.env.example` para `.env` e preencha com suas credenciais:
+```bash
+cp .env.example .env
+```
+> **Nota:** Para acesso à API da ANA, é necessário possuir um `identificador` e `senha` válidos fornecidos pelo órgão.
+
+### 5. Executar o Sistema
+```bash
+python src/main.py
+```
+
+## 📡 Exemplos de Uso (Payload MQTT)
+
+O sistema publica dados no tópico configurado (padrão: `projeto-mapi/sensores/{id_sensor}`). Exemplo de payload enviado:
+
+```json
+{
+  "id_sensor": "APAC-METEO-RECIFE",
+  "estacao_nome": "Recife (Curado)",
+  "municipio": "Recife",
+  "temperatura": 28.5,
+  "umidade": 75,
+  "chuva_acumulada": 0.0,
+  "status_bateria": 98.5,
+  "fog_modo_critico": false,
+  "fog_valor_referencia": 0.0,
+  "timestamp": "2024-05-24T14:30:00Z"
+}
+```
+
+## 🤝 Como Contribuir
+
+1. Faça um **Fork** do projeto.
+2. Crie uma **Branch** para sua feature (`git checkout -b feature/nova-funcionalidade`).
+3. Faça o **Commit** de suas alterações (`git commit -m 'Adiciona nova funcionalidade'`).
+4. Faça o **Push** para a Branch (`git push origin feature/nova-funcionalidade`).
+5. Abra um **Pull Request**.
+
+## 📄 Licença
+
+Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ---
-**Camada de inteligência distribuída para prevenção de desastres.**
+**Desenvolvido como parte da camada de inteligência para prevenção de desastres naturais.**

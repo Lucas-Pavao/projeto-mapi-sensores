@@ -86,7 +86,7 @@ def main():
     # --- ANA (Agência Nacional de Águas) ---
     coletor_ana = AnaRestCollector(auth)
     # Estações: Rio Capibaribe (São Lourenço) e Barreiros
-    estacoes_ana = ["39187800", "39590000"] 
+    estacoes_ana = ["39187800", "39590000", "80535020", ]
     data_hoje = time.strftime("%Y-%m-%d")
 
     print("\n[VIRTUALIZATION] Provisionando sensores ANA via API REST...")
