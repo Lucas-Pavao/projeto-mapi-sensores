@@ -85,16 +85,28 @@ def main():
 
     # --- ANA (Agência Nacional de Águas) ---
     coletor_ana = AnaRestCollector(auth)
-    # Estações: Rio Capibaribe (São Lourenço) e Barreiros
-    estacoes_ana = ["39187800", "39590000"] 
+    
+    # Configuração das estações: ID -> Nome Amigável (para o ID do sensor)
+    estacoes_ana = {
+        # Capibaribe e Afluentes
+        "39187800": "CAPIBARIBE-SLM",   # São Lourenço da Mata II
+        "39187900": "MATRIZ-DA-LUZ",    # São Lourenço (Açude)
+        "39145000": "LIMOEIRO",         # Limoeiro (Montante Capibaribe)
+        "39084000": "CARICE-ITAMBE",    # Itambé (Divisa PE/PB)
+        
+        # Jaboatão, Pirapama e Litoral Sul
+        "39170000": "VITORIA-S-ANTAO",  # Vitória de Santo Antão
+        "39370100": "MARANHAO-IPOJUCA", # Ipojuca (Engenho Maranhão)
+        "39590000": "BARREIROS",        # Barreiros
+        "39540000": "AGRESTINA"         # Agrestina (Capivara)
+    }
     data_hoje = time.strftime("%Y-%m-%d")
 
     print("\n[VIRTUALIZATION] Provisionando sensores ANA via API REST...")
-    print("  -> Fonte: Rede Hidrometeorológica Nacional (Telemetria)")
+    print(f"  -> Fonte: Rede Hidrometeorológica Nacional ({len(estacoes_ana)} estações)")
     
-    for cod in estacoes_ana:
-        nome_rio = "CAPIBARIBE" if cod == "39187800" else "BARREIROS"
-        id_a = f"ANA-TELE-{nome_rio}"
+    for cod, nome_amigavel in estacoes_ana.items():
+        id_a = f"ANA-TELE-{nome_amigavel}"
         s_a = VirtualSensor(coletor_ana, id_a, mqtt_manager=mqtt, intervalo_segundos=120)
         sensores_ativos.append(s_a)
         t_a = threading.Thread(target=s_a.iniciar_monitoramento, kwargs={

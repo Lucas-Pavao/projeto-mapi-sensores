@@ -1,46 +1,82 @@
-# Projeto MAPI - Monitoramento e Fog Computing 📡🐍
+# Projeto MAPI - Coletores e Sensores Virtuais 📡🌊
 
-O **Projeto MAPI (Python)** atua como a camada de **Fog Computing (Computação em Névoa)** e virtualização de sensores da solução MAPI. Este middleware é responsável por extrair, normalizar e processar dados ambientais de diversas fontes oficiais, transformando-os em fluxos de dados inteligentes via MQTT.
+O **Projeto MAPI** é uma solução de **Fog Computing (Computação em Névoa)** projetada para o monitoramento hidrometeorológico inteligente na Região Metropolitana do Recife. Ele atua como um middleware que virtualiza estações de monitoramento governamentais (ANA e APAC), aplicando lógica de borda para detecção de anomalias e otimização da transmissão de dados via MQTT.
 
-## 📋 O que é o projeto?
+## 🛠️ Tecnologias Escolhidas
 
-O projeto funciona como uma malha de **Sensores Virtuais**. Em vez de depender apenas de hardware físico caro, o sistema "virtualiza" estações de monitoramento governamentais (ANA e APAC), coletando seus dados em tempo real e aplicando lógica de borda para detectar anomalias antes mesmo dos dados chegarem à nuvem.
+- **Linguagem:** Python 3.12+
+- **Comunicação:** Paho-MQTT (Protocolo IoT)
+- **Extração de Dados:** BeautifulSoup4, Requests, XMLtoDict
+- **Processamento:** Threading (para gerenciamento paralelo de sensores)
+- **Configuração:** Python-Dotenv
 
-## 🏗️ Arquitetura
+## ✨ Funcionalidades / Features
 
-O sistema utiliza uma arquitetura modular baseada em **Agentes e Controladores**, projetada para alta resiliência e concorrência:
+- 🔄 **Virtualização de Sensores:** Simula o comportamento de dispositivos físicos a partir de dados de APIs governamentais.
+- 🧠 **Inteligência de Borda (Edge Intelligence):** Adaptação dinâmica da frequência de coleta baseada na detecção de anomalias (ex: aumento de chuva ou nível do rio).
+- 📡 **Coleta Multi-fonte:** Integração com WebServices da ANA e Scraping de dados da APAC e CEMADEN.
+- ⚡ **Baixa Latência:** Publicação de dados em tempo real via protocolo MQTT para consumo pela API central.
 
-1.  **Coletores (Collectors):** Módulos especializados em "scraping" ou consumo de APIs REST. Cada órgão (ANA, APAC) possui seu próprio coletor que conhece as nuances da extração de dados brutos.
-2.  **Sensores Virtuais (VirtualSensors):** A inteligência central. Cada sensor virtual representa um ponto de monitoramento geográfico. Ele decide quando aumentar a frequência de coleta baseado nos dados recebidos (Lógica de Fog).
-3.  **Gerenciador de Mensagens (MQTT Manager):** Responsável por formatar os dados processados em JSON e publicá-los em tópicos MQTT para consumo da API Spring Boot.
-4.  **Orquestrador (Main):** Gerencia o ciclo de vida de múltiplos sensores virtuais rodando em threads paralelas, permitindo o monitoramento simultâneo de várias bacias hidrográficas e cidades.
-
-## 📂 Estrutura do Projeto
+## 📂 Estrutura de Pastas
 
 ```text
-src/
-├── collectors/      # Agentes de extração (ANA, APAC, CEMADEN)
-├── controllers/     # Lógica do VirtualSensor e gerenciamento de anomalias
-├── services/        # Serviços de infraestrutura (MQTT, Auth OAuth2 para ANA)
-├── utils/           # Funções auxiliares de processamento de texto e dados
-└── main.py          # Ponto de entrada e orquestração de threads
+projeto-mapi/
+├── src/
+│   ├── collectors/      # Agentes de extração (Scraping/API ANA e APAC)
+│   ├── controllers/     # Lógica de Fog e Gerenciamento de Sensores Virtuais
+│   ├── services/        # Gestão de Autenticação e Conexão MQTT
+│   ├── utils/           # Funções auxiliares e normalização de dados
+│   └── main.py          # Ponto de entrada e orquestração do sistema
+├── tests/               # Suite de testes unitários e integração
+├── .env.example         # Template de variáveis de ambiente
+├── requirements.txt     # Dependências do projeto
+└── README.md            # Documentação principal
 ```
 
-## ⚙️ Como o projeto funciona?
+## 📋 Pré-requisitos
 
-1.  **Coleta Inteligente:** O sistema inicia múltiplos `VirtualSensors` em threads separadas. Cada um busca dados de fontes como o WebService da ANA ou o portal da APAC.
-2.  **Lógica de Fog Computing:** Se um sensor detecta uma anomalia (ex: nível de rio subindo rápido ou chuva forte), ele entra em "Modo Crítico" e aumenta automaticamente sua frequência de polling (ex: de 10 minutos para 30 segundos).
-3.  **Processamento de Borda:** Os dados são limpos e normalizados localmente, simulando o comportamento de um dispositivo IoT físico (incluindo status de bateria e telemetria).
-4.  **Publicação MQTT:** O resultado é enviado para um Broker MQTT. A API central (Java) escuta esses tópicos e persiste os dados para o dashboard.
+- Python 3.12 ou superior instalado.
+- Acesso a um Broker MQTT (ex: Mosquitto, HiveMQ).
+- Pip (gerenciador de pacotes do Python).
 
-## 🚀 Tecnologias Utilizadas
+## 🚀 Como instalar e rodar
 
-- **Python 3.12+**
-- **MQTT (Paho-MQTT)**
-- **BeautifulSoup4** (Scraping de dados governamentais)
-- **Requests** (Consumo de APIs)
-- **Threading** (Concorrência para múltiplos sensores)
-- **OAuth2** (Autenticação para serviços oficiais)
+1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/Lucas-Pavao/projeto-mapi-sensores.git
+   cd projeto-mapi-sensores
+   ```
 
----
-**Camada de inteligência distribuída para prevenção de desastres.**
+2. **Crie e ative um ambiente virtual:**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # No Windows: .venv\Scripts\activate
+   ```
+
+3. **Instale as dependências:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure as variáveis de ambiente:**
+   ```bash
+   cp .env.example .env
+   # Edite o arquivo .env com suas configurações de MQTT e APIs
+   ```
+
+5. **Execute a aplicação:**
+   ```bash
+   python -m src.main
+   ```
+
+## 🤝 Como contribuir
+
+1. Faça um **Fork** do projeto.
+2. Crie uma **Branch** para sua modificação (`git checkout -b feature/minha-feature`).
+3. Faça o **Commit** de suas alterações (`git commit -m 'Add: nova funcionalidade'`).
+4. Faça o **Push** para a sua Branch (`git push origin feature/minha-feature`).
+5. Abra um **Pull Request**.
+
+## 📄 Licença
+
+Este projeto está sob a licença **MIT**.
