@@ -1,129 +1,82 @@
-# Projeto MAPI - Monitoramento de Águas e Pluviometria Inteligente 📡🌊
+# Projeto MAPI - Coletores e Sensores Virtuais 📡🌊
 
-![Python Version](https://img.shields.io/badge/python-3.12%2B-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![Status](https://img.shields.io/badge/status-active-brightgreen)
-![Architecture](https://img.shields.io/badge/architecture-Fog%20Computing-orange)
+O **Projeto MAPI** é uma solução de **Fog Computing (Computação em Névoa)** projetada para o monitoramento hidrometeorológico inteligente na Região Metropolitana do Recife. Ele atua como um middleware que virtualiza estações de monitoramento governamentais (ANA e APAC), aplicando lógica de borda para detecção de anomalias e otimização da transmissão de dados via MQTT.
 
-O **Projeto MAPI** é uma solução avançada de **Fog Computing (Computação em Névoa)** e virtualização de sensores voltada para o monitoramento hidrometeorológico. Ele atua como um middleware inteligente que extrai, normaliza e processa dados ambientais de órgãos oficiais (ANA e APAC), transformando-os em fluxos de dados em tempo real via protocolo MQTT.
+## 🛠️ Tecnologias Escolhidas
 
-## 📋 Descrição Geral
+- **Linguagem:** Python 3.12+
+- **Comunicação:** Paho-MQTT (Protocolo IoT)
+- **Extração de Dados:** BeautifulSoup4, Requests, XMLtoDict
+- **Processamento:** Threading (para gerenciamento paralelo de sensores)
+- **Configuração:** Python-Dotenv
 
-O sistema funciona através de uma malha de **Sensores Virtuais**. Em vez de depender exclusivamente de hardware físico, o MAPI "virtualiza" estações de monitoramento governamentais, aplicando lógica de borda para detectar anomalias (como subida rápida de rios ou chuvas intensas). 
+## ✨ Funcionalidades / Features
 
-Diferente de uma coleta simples, o MAPI implementa **Inteligência de Borda**: quando uma anomalia é detectada, o sensor virtual aumenta automaticamente sua frequência de coleta (polling), garantindo dados granulares em momentos críticos sem sobrecarregar a rede em períodos de normalidade.
+- 🔄 **Virtualização de Sensores:** Simula o comportamento de dispositivos físicos a partir de dados de APIs governamentais.
+- 🧠 **Inteligência de Borda (Edge Intelligence):** Adaptação dinâmica da frequência de coleta baseada na detecção de anomalias (ex: aumento de chuva ou nível do rio).
+- 📡 **Coleta Multi-fonte:** Integração com WebServices da ANA e Scraping de dados da APAC e CEMADEN.
+- ⚡ **Baixa Latência:** Publicação de dados em tempo real via protocolo MQTT para consumo pela API central.
 
-## ✨ Funcionalidades Principais
-
-- **Virtualização Multi-Fonte:** Integração nativa com:
-  - **APAC:** Scraping de dados meteorológicos e pluviométricos (Cemaden).
-  - **ANA:** Integração com WebService REST via autenticação OAuth2.
-- **Lógica de Fog Computing:** Adaptação dinâmica do intervalo de coleta baseada no comportamento dos dados.
-- **Processamento de Borda:** Limpeza, normalização e "achatamento" (flattening) de payloads complexos antes do envio.
-- **Simulação de Telemetria:** Cada sensor virtual simula status de bateria, ciclos de carga/descarga e telemetria de sinal.
-- **Concorrência Escalável:** Arquitetura baseada em threads que permite monitorar centenas de estações simultaneamente.
-- **Integração MQTT:** Publicação de dados em tópicos hierárquicos para fácil consumo por dashboards ou sistemas de alerta.
-
-## 🛠️ Tecnologias Utilizadas
-
-### Core
-- **Python 3.12+**: Linguagem base do projeto.
-- **Threading**: Para execução paralela de sensores virtuais.
-
-### Integração e Dados
-- **Requests & BeautifulSoup4**: Extração e scraping de dados governamentais.
-- **Paho-MQTT**: Protocolo de comunicação leve para IoT.
-- **XMLtoDict**: Conversão de respostas SOAP/XML da ANA para formatos amigáveis.
-- **Python-Dotenv**: Gerenciamento de variáveis de ambiente.
-
-## 🏗️ Arquitetura e Estrutura de Pastas
-
-O projeto segue um padrão modular baseado em agentes:
+## 📂 Estrutura de Pastas
 
 ```text
 projeto-mapi/
 ├── src/
-│   ├── collectors/      # Agentes de extração (ANA, APAC, Base)
-│   ├── controllers/     # Lógica do VirtualSensor e gerenciamento de anomalias
-│   ├── services/        # Infraestrutura (MQTT, Auth Manager)
-│   ├── utils/           # Processamento de texto e normalização
-│   └── main.py          # Orquestrador e ponto de entrada
-├── tests/               # Testes unitários e de integração
-├── .env.example         # Template de configuração
-├── AGENTS.md            # Documentação detalhada dos agentes
+│   ├── collectors/      # Agentes de extração (Scraping/API ANA e APAC)
+│   ├── controllers/     # Lógica de Fog e Gerenciamento de Sensores Virtuais
+│   ├── services/        # Gestão de Autenticação e Conexão MQTT
+│   ├── utils/           # Funções auxiliares e normalização de dados
+│   └── main.py          # Ponto de entrada e orquestração do sistema
+├── tests/               # Suite de testes unitários e integração
+├── .env.example         # Template de variáveis de ambiente
+├── requirements.txt     # Dependências do projeto
 └── README.md            # Documentação principal
 ```
 
-## ⚙️ Pré-requisitos
+## 📋 Pré-requisitos
 
-Antes de iniciar, você precisará ter instalado:
-- **Python 3.12** ou superior.
-- **Broker MQTT** (Ex: Mosquitto local ou brokers públicos como HiveMQ/EMQX).
-- **Pip** (Gerenciador de pacotes do Python).
+- Python 3.12 ou superior instalado.
+- Acesso a um Broker MQTT (ex: Mosquitto, HiveMQ).
+- Pip (gerenciador de pacotes do Python).
 
-## 🚀 Como Executar o Projeto
+## 🚀 Como instalar e rodar
 
-### 1. Clonar o Repositório
-```bash
-git clone https://github.com/seu-usuario/projeto-mapi.git
-cd projeto-mapi
-```
+1. **Clone o repositório:**
+   ```bash
+   git clone https://github.com/Lucas-Pavao/projeto-mapi-sensores.git
+   cd projeto-mapi-sensores
+   ```
 
-### 2. Configurar Ambiente Virtual
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# ou
-.venv\Scripts\activate     # Windows
-```
+2. **Crie e ative um ambiente virtual:**
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # No Windows: .venv\Scripts\activate
+   ```
 
-### 3. Instalar Dependências
-```bash
-pip install -r requirements.txt
-```
+3. **Instale as dependências:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-### 4. Configurar Variáveis de Ambiente
-Copie o arquivo `.env.example` para `.env` e preencha com suas credenciais:
-```bash
-cp .env.example .env
-```
-> **Nota:** Para acesso à API da ANA, é necessário possuir um `identificador` e `senha` válidos fornecidos pelo órgão.
+4. **Configure as variáveis de ambiente:**
+   ```bash
+   cp .env.example .env
+   # Edite o arquivo .env com suas configurações de MQTT e APIs
+   ```
 
-### 5. Executar o Sistema
-```bash
-python src/main.py
-```
+5. **Execute a aplicação:**
+   ```bash
+   python -m src.main
+   ```
 
-## 📡 Exemplos de Uso (Payload MQTT)
-
-O sistema publica dados no tópico configurado (padrão: `projeto-mapi/sensores/{id_sensor}`). Exemplo de payload enviado:
-
-```json
-{
-  "id_sensor": "APAC-METEO-RECIFE",
-  "estacao_nome": "Recife (Curado)",
-  "municipio": "Recife",
-  "temperatura": 28.5,
-  "umidade": 75,
-  "chuva_acumulada": 0.0,
-  "status_bateria": 98.5,
-  "fog_modo_critico": false,
-  "fog_valor_referencia": 0.0,
-  "timestamp": "2024-05-24T14:30:00Z"
-}
-```
-
-## 🤝 Como Contribuir
+## 🤝 Como contribuir
 
 1. Faça um **Fork** do projeto.
-2. Crie uma **Branch** para sua feature (`git checkout -b feature/nova-funcionalidade`).
-3. Faça o **Commit** de suas alterações (`git commit -m 'Adiciona nova funcionalidade'`).
-4. Faça o **Push** para a Branch (`git push origin feature/nova-funcionalidade`).
+2. Crie uma **Branch** para sua modificação (`git checkout -b feature/minha-feature`).
+3. Faça o **Commit** de suas alterações (`git commit -m 'Add: nova funcionalidade'`).
+4. Faça o **Push** para a sua Branch (`git push origin feature/minha-feature`).
 5. Abra um **Pull Request**.
 
 ## 📄 Licença
 
-Este projeto está sob a licença **MIT**. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
-
----
-**Desenvolvido como parte da camada de inteligência para prevenção de desastres naturais.**
+Este projeto está sob a licença **MIT**.
