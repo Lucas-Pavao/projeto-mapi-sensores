@@ -23,10 +23,11 @@ Este projeto é o **produtor de dados primários** do ecossistema. Ele opera de 
   [ MAPI Front ] (React 19 / MapLibre GL) 💻✨
 ```
 
-### Dependências no Ecossistema:
-- **MAPI API (Backend):** O Edge atua como um Publisher focado no Broker MQTT orquestrado pela API Central.
-- **MAPI AI (Inteligência):** Os payloads gerados aqui são a matéria-prima usada para o treinamento histórico e inferências.
-- **MAPI Front (Dashboard):** Dados de telemetria processados na borda são exibidos na interface geoespacial.
+### Componentes do Ecossistema:
+- **[MAPI Edge (Este Repositório)](https://github.com/Lucas-Pavao/projeto-mapi-sensores):** Produtor de dados primários e inteligência de borda.
+- **[MAPI API (Backend)](https://github.com/Lucas-Pavao/projeto-mapi-api):** Orquestrador central, ingestão MQTT e persistência temporal.
+- **[MAPI AI (Inteligência)](https://github.com/Lucas-Pavao/projeto-mapi-ai):** Microserviço de inferência para predição de riscos.
+- **[MAPI Front (Dashboard)](https://github.com/Lucas-Pavao/projeto-mapi-front):** Interface geoespacial para monitoramento em tempo real.
 
 ## 🛠️ Tecnologias Escolhidas
 
