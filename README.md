@@ -1,5 +1,12 @@
 # Sistema de Monitoramento Ambiental Distribuído (projeto-mapi)
 
+> **DESCONTINUADO (2026-10-10).** Este componente (MAPI Edge: coleta ANA/APAC e publicação via MQTT)
+> não faz mais parte do ecossistema MAPI. A coleta passou a ser feita pela própria
+> [MAPI API](https://github.com/Lucas-Pavao/projeto-mapi-api), em jobs agendados
+> (`SensorCollectionTask`), e a ingestão MQTT foi removida. O código fica aqui só como registro
+> histórico; não recebe manutenção.
+
+
 Este projeto, batizado internamente como `projeto-mapi`, é um sistema de monitoramento ambiental distribuído que simula uma arquitetura de Edge/Fog Computing. Ele foi projetado para coletar, processar e unificar dados meteorológicos e hidrológicos de múltiplas fontes em tempo real, integrando agora comunicação via protocolo **MQTT**.
 
 ## Tabela de Conteúdos
