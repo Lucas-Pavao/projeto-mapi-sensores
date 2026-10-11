@@ -3,7 +3,7 @@ from src.collectors.base_collector import BaseApacCollector
 
 class ApacCemadenCollector(BaseApacCollector):
     def __init__(self):
-        super().__init__("cemaden")
+        super().__init__("APAC_CEMADEN_ENDPOINT")
 
     def _parse_data(self, dados_brutos):
         resultados = []

@@ -1,6 +1,7 @@
 import threading
 import time
 import sys
+import os
 from src.services.auth_manager import AuthManager
 from src.services.mqtt_manager import MQTTManager
 from src.collectors.ana_rest_collector import AnaRestCollector
@@ -8,85 +9,120 @@ from src.collectors.apac_meteorologia24h_collector import ApacCollectorMeteorolo
 from src.collectors.apac_cemaden_collector import ApacCemadenCollector
 from src.controllers.sensor_manager import VirtualSensor
 
-def menu_selecao():
-    print("\n" + "="*40)
-    print("      CONFIGURAÇÃO DA MALHA IOT")
-    print("="*40)
-    print("1. Apenas APAC (Meteorologia + Cemaden)")
-    print("2. Apenas ANA (Telemétrica)")
-    print("3. AMBOS (Malha Completa)")
-    print("4. Sair")
-    escolha = input("\nEscolha os coletores para ativar: ")
-    return escolha
-
 def main():
-    escolha = menu_selecao()
-    if escolha == '4':
-        sys.exit()
+    print("\n" + "="*50)
+    print("      INICIALIZANDO MALHA IOT - PROJETO MAPI")
+    print("      (Modo Automático: Malha Completa Ativa)")
+    print("="*50)
 
     # ==========================================
     # 1. SETUP DE SERVIÇOS (Auth e MQTT)
     # ==========================================
     auth = AuthManager()
-    # Recomendado: Usar um broker Docker (localhost) se estiver em produção
-    mqtt = MQTTManager(broker="broker.hivemq.com") 
+    # Configurações via .env
+    mqtt = MQTTManager() 
     mqtt.connect()
 
     sensores_ativos = []
     threads = []
     
-    cidades_alvo = ["RECIFE", "OLINDA", "JABOATAO DOS GUARARAPES"]
-
     # ==========================================
-    # 2. DEPLOY DOS COLETORES SELECIONADOS
+    # 2. DEPLOY DOS COLETORES (MALHA COMPLETA)
     # ==========================================
     
-    # --- APAC ---
-    if escolha in ['1', '3']:
-        coletor_meteorologia = ApacCollectorMeteorologia24h()
-        coletor_cemaden = ApacCemadenCollector()
+    # --- APAC (Agência Pernambucana de Águas e Clima) ---
+    coletor_meteorologia = ApacCollectorMeteorologia24h()
+    coletor_cemaden = ApacCemadenCollector()
 
-        print("\n-> Provisionando sensores APAC (Fog Logic habilitada)...")
-        for cidade in cidades_alvo:
-            # Meteorologia
-            id_m = f"APAC-METEO-{cidade.split()[0]}"
-            s_m = VirtualSensor(coletor_meteorologia, id_m, mqtt_manager=mqtt, intervalo_segundos=60)
-            sensores_ativos.append(s_m)
-            t_m = threading.Thread(target=s_m.iniciar_monitoramento, kwargs={'filtro_cidade': cidade}, daemon=True)
-            t_m.start()
-            threads.append(t_m)
+    print("\n[VIRTUALIZATION] Provisionando sensores APAC via Scraping JSON...")
+    print("  -> Fontes: Meteorologia 24h e Pluviômetros Cemaden")
+    
+    def deploy_sensores_apac(coletor, prefixo_id, apenas_rmr=True):
+        # Busca todas as estações disponíveis
+        todas_estacoes = coletor.buscar_dados()
+        if not todas_estacoes:
+            return
 
-            # Pluviômetros
-            id_p = f"APAC-PLUVIO-{cidade.split()[0]}"
-            s_p = VirtualSensor(coletor_cemaden, id_p, mqtt_manager=mqtt, intervalo_segundos=60)
-            sensores_ativos.append(s_p)
-            t_p = threading.Thread(target=s_p.iniciar_monitoramento, kwargs={'filtro_cidade': cidade}, daemon=True)
-            t_p.start()
-            threads.append(t_p)
+        from src.utils.text_utils import is_rmr, normalizar_texto
+        
+        estacoes_alvo = []
+        for e in todas_estacoes:
+            municipio = e.get('municipio', '')
+            nome_estacao = e.get('estacao_nome', '')
+            
+            if not apenas_rmr or is_rmr(municipio, nome_estacao):
+                estacoes_alvo.append(e)
 
-    # --- ANA ---
-    if escolha in ['2', '3']:
-        coletor_ana = AnaRestCollector(auth)
-        estacoes_ana = ["39170000"] # Exemplo de código de estação (Rio Capibaribe)
-        data_hoje = time.strftime("%Y-%m-%d")
+        # Remove duplicatas (mesmo nome na mesma cidade)
+        vistas = set()
+        for e in estacoes_alvo:
+            key = (e['estacao_nome'], e['municipio'])
+            if key in vistas:
+                continue
+            vistas.add(key)
 
-        print("\n-> Provisionando sensores ANA (Fog Logic habilitada)...")
-        for cod in estacoes_ana:
-            id_a = f"ANA-TELE-{cod}"
-            s_a = VirtualSensor(coletor_ana, id_a, mqtt_manager=mqtt, intervalo_segundos=120)
-            sensores_ativos.append(s_a)
-            t_a = threading.Thread(target=s_a.iniciar_monitoramento, kwargs={
-                'cod_estacao': cod, 
-                'data_busca': data_hoje
-            }, daemon=True)
-            t_a.start()
-            threads.append(t_a)
+            # Criar ID amigável: PREFIXO-CIDADE-ESTACAO
+            cidade = e['municipio']
+            cidade_id = normalizar_texto(cidade).split()[0] if cidade and cidade != "Não informada" else "RMR"
+            
+            # Limpa o nome da estação para o ID
+            nome_limpo = e['estacao_nome'].replace("[APAC]", "").replace("[CEMADEN]", "").replace("[", "").replace("]", "").strip()
+            nome_id = normalizar_texto(nome_limpo).split()[0]
+            id_sensor = f"{prefixo_id}-{cidade_id}-{nome_id}"
+
+            s = VirtualSensor(coletor, id_sensor, mqtt_manager=mqtt, intervalo_segundos=60)
+            sensores_ativos.append(s)
+            t = threading.Thread(
+                target=s.iniciar_monitoramento, 
+                kwargs={'filtro_estacao': e['estacao_nome']}, 
+                daemon=True
+            )
+            t.start()
+            threads.append(t)
+
+    deploy_sensores_apac(coletor_meteorologia, "APAC-METEO", apenas_rmr=False)
+    deploy_sensores_apac(coletor_cemaden, "APAC-PLUVIO", apenas_rmr=True)
+
+    # --- ANA (Agência Nacional de Águas) ---
+    coletor_ana = AnaRestCollector(auth)
+    
+    # Configuração das estações: ID -> Nome Amigável (para o ID do sensor)
+    estacoes_ana = {
+        # Capibaribe e Afluentes
+        "39187800": "CAPIBARIBE-SLM",   # São Lourenço da Mata II
+        "39187900": "MATRIZ-DA-LUZ",    # São Lourenço (Açude)
+        "39145000": "LIMOEIRO",         # Limoeiro (Montante Capibaribe)
+        "39084000": "CARICE-ITAMBE",    # Itambé (Divisa PE/PB)
+        
+        # Jaboatão, Pirapama e Litoral Sul
+        "39170000": "VITORIA-S-ANTAO",  # Vitória de Santo Antão
+        "39370100": "MARANHAO-IPOJUCA", # Ipojuca (Engenho Maranhão)
+        "39590000": "BARREIROS",        # Barreiros
+        "39540000": "AGRESTINA"         # Agrestina (Capivara)
+    }
+    data_hoje = time.strftime("%Y-%m-%d")
+
+    print("\n[VIRTUALIZATION] Provisionando sensores ANA via API REST...")
+    print(f"  -> Fonte: Rede Hidrometeorológica Nacional ({len(estacoes_ana)} estações)")
+    
+    for cod, nome_amigavel in estacoes_ana.items():
+        id_a = f"ANA-TELE-{nome_amigavel}"
+        s_a = VirtualSensor(coletor_ana, id_a, mqtt_manager=mqtt, intervalo_segundos=120)
+        sensores_ativos.append(s_a)
+        t_a = threading.Thread(target=s_a.iniciar_monitoramento, kwargs={
+            'cod_estacao': cod, 
+            'data_busca': data_hoje
+        }, daemon=True)
+        t_a.start()
+        threads.append(t_a)
 
     # ==========================================
     # 3. MONITORAMENTO DO SISTEMA
     # ==========================================
-    print(f"\n[+] {len(sensores_ativos)} sensores virtuais em execução.")
-    print("[+] Publicando em: projeto-mapi/sensores/#")
+    topic_prefix = os.getenv("MQTT_TOPIC_PREFIX", "projeto-mapi/sensores")
+    print(f"\n[SISTEMA] {len(sensores_ativos)} sensores virtuais em execução paralela.")
+    print(f"[SISTEMA] Broker MQTT: {os.getenv('MQTT_BROKER', 'broker.hivemq.com')}")
+    print(f"[SISTEMA] Tópico base: {topic_prefix}/#")
     
     try:
         while True:

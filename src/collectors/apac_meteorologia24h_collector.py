@@ -3,7 +3,7 @@ from src.collectors.base_collector import BaseApacCollector
 
 class ApacCollectorMeteorologia24h(BaseApacCollector):
     def __init__(self):
-        super().__init__("meteorologia24h")
+        super().__init__("APAC_METEOROLOGIA_ENDPOINT")
 
     def _parse_data(self, dados_brutos):
         resultados = []
@@ -32,6 +32,9 @@ class ApacCollectorMeteorologia24h(BaseApacCollector):
                     'municipio': municipio,
                     'temperatura_ar': detalhes.get("temperatura_ar") or detalhes.get("temperatura_inst"),
                     'umidade_relativa': detalhes.get("umidade_relativa") or detalhes.get("umidade_inst"),
+                    'pressao_atmosferica': detalhes.get("pressao_atmosferica") or detalhes.get("pressao_inst"),
+                    'velocidade_vento': detalhes.get("velocidade_vento") or detalhes.get("vento_velocidade"),
+                    'direcao_vento': detalhes.get("direcao_vento") or detalhes.get("vento_direcao"),
                     'radiacao_solar': detalhes.get("radiacao_solar") or detalhes.get("radiacao_solar_global"),
                     'precipitacao_acumulada': float(
                         detalhes.get("precipitacao_acumulada") or detalhes.get("precipitacao_xx_00") or 0),

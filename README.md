@@ -1,4 +1,4 @@
-# Sistema de Monitoramento Ambiental Distribuído (projeto-mapi)
+# MAPI Edge - Coletores e Sensores Virtuais (Fog Computing) 📡🌊
 
 > **DESCONTINUADO (2026-10-10).** Este componente (MAPI Edge: coleta ANA/APAC e publicação via MQTT)
 > não faz mais parte do ecossistema MAPI. A coleta passou a ser feita pela própria
@@ -6,121 +6,121 @@
 > (`SensorCollectionTask`), e a ingestão MQTT foi removida. O código fica aqui só como registro
 > histórico; não recebe manutenção.
 
+O **MAPI Edge** é o componente de borda do ecossistema MAPI, desenvolvido para monitoramento hidrometeorológico resiliente através de **Fog Computing (Computação em Névoa)**.
 
-Este projeto, batizado internamente como `projeto-mapi`, é um sistema de monitoramento ambiental distribuído que simula uma arquitetura de Edge/Fog Computing. Ele foi projetado para coletar, processar e unificar dados meteorológicos e hidrológicos de múltiplas fontes em tempo real, integrando agora comunicação via protocolo **MQTT**.
+Este módulo virtualiza estações de monitoramento físicas das agências **ANA** e **APAC**, aplicando inteligência local para otimização de banda e detecção de anomalias antes do envio dos dados via MQTT.
 
-## Tabela de Conteúdos
-- [Sobre o Projeto](#sobre-o-projeto)
-- [Principais Características](#principais-características)
-- [Arquitetura e Tecnologias](#arquitetura-e-tecnologias)
-- [Estrutura do Projeto](#estrutura-do-projeto)
-- [Como Começar](#como-começar)
-  - [Pré-requisitos](#pré-requisitos)
-  - [Instalação](#instalação)
-- [Configuração](#configuração)
-  - [MQTT](#mqtt)
-  - [API da ANA](#api-da-ana)
-- [Como Executar](#como-executar)
+## 🌐 Ecossistema MAPI
 
-## Sobre o Projeto
+Este projeto é o **produtor de dados primários** do ecossistema. Ele opera de forma integrada com os demais módulos:
 
-O sistema utiliza um modelo de **Sensores Virtuais Paralelos**. Cada ponto de monitoramento e cada tipo de dado funciona como um "nó" independente, executando sua coleta de forma paralela e publicando os resultados em um broker MQTT.
-
-- **Multithreading**: Cada sensor virtual roda em uma thread independente, garantindo alta disponibilidade e resiliência a falhas de rede.
-- **Comunicação MQTT**: Todos os dados coletados são publicados em tópicos estruturados, permitindo a integração fácil com dashboards (como Node-RED ou Grafana) e outros sistemas.
-- **Modularidade**: Divisão clara entre coletores de dados, gerenciamento de sensores e serviços de comunicação.
-
-## Principais Características
-
-- **3 Malhas de Sensores Virtuais**:
-  1. **Clima (APAC Meteorologia 24h)**: Temperatura, umidade do ar, radiação solar e umidade do solo.
-  2. **Pluviômetros (APAC Cemaden)**: Precipitação acumulada e dados geotécnicos.
-  3. **Telemétricos (ANA)**: Nível de rios, vazão e chuva adotada via API REST.
-- **Protocolo MQTT**: Publicação automática no tópico `projeto-mapi/sensores/{ID_SENSOR}`.
-- **Refatoração Orientada a Objetos**: Utilização de classes base para coletores, minimizando duplicação de código.
-
-## Arquitetura e Tecnologias
-
-- **Linguagem**: Python 3.x
-- **Bibliotecas Principais**:
-    - `paho-mqtt`: Comunicação com o broker MQTT.
-    - `requests`: Requisições HTTP/REST para as APIs.
-    - `beautifulsoup4`: Parsing de dados quando necessário.
-    - `python-dotenv`: Gerenciamento de variáveis de ambiente.
-    - `threading`: Execução paralela dos sensores.
-
-## Estrutura do Projeto
-
+```text
+  [ MAPI Edge ] (Python / MQTT) 📡 <-- (Este Serviço)
+        │   (Pulsações Telemétricas e Inteligência de Borda)
+        ▼
+  [  MAPI API  ] (Java 21 / Spring Boot / TimescaleDB) 🌊🚀
+        │ ▲
+        │ │ (Dados em Tempo Real via HTTP POST / Resposta com Probabilidade e Risco)
+        ▼ │
+  [  MAPI AI  ] (Python / FastAPI / XGBoost & LSTM) 🧠
+        │
+        │ (Consumo da REST API e Exibição Geoespacial)
+        ▼
+  [ MAPI Front ] (React 19 / MapLibre GL) 💻✨
 ```
+
+### Componentes do Ecossistema:
+- **[MAPI Edge (Este Repositório)](https://github.com/Lucas-Pavao/projeto-mapi-sensores):** Produtor de dados primários e inteligência de borda.
+- **[MAPI API (Backend)](https://github.com/Lucas-Pavao/projeto-mapi-api):** Orquestrador central, ingestão MQTT e persistência temporal.
+- **[MAPI AI (Inteligência)](https://github.com/Lucas-Pavao/projeto-mapi-ai):** Microserviço de inferência para predição de riscos.
+- **[MAPI Front (Dashboard)](https://github.com/Lucas-Pavao/projeto-mapi-front):** Interface geoespacial para monitoramento em tempo real.
+
+## 🛠️ Tecnologias Escolhidas
+
+| Categoria | Tecnologia | Justificativa Técnica |
+| :--- | :--- | :--- |
+| **Linguagem** | Python 3.12+ | Agilidade para scraping e manipulação numérica. |
+| **Mensageria** | Paho-MQTT | Protocolo leve ideal para conectividade instável. |
+| **Extração de Dados** | BeautifulSoup4 & Requests | Robustez para scraping (APAC) e WebServices REST (ANA). |
+| **Processamento** | XMLtoDict & NumPy | Conversão de XML e processamento matemático de matrizes. |
+| **Gestão de Config** | Python-Dotenv | Isolamento seguro de variáveis de ambiente. |
+
+## ✨ Funcionalidades Principais
+
+- **Virtualização de Sensores:** Emula dispositivos físicos, incluindo simulação de drenos e ciclos de recarga solar.
+- **Fog Intelligence:** Frequência Adaptativa (aumenta taxa de coleta em anomalias) e Processamento na Borda.
+- **Resiliência e Autopreservação:** Modo de economia de energia e "Recarga Solar".
+- **Suporte Multi-fonte:** CEMADEN, Meteorologia 24h (APAC) e Rede Telemétrica Nacional (ANA).
+
+## 📂 Estrutura do Projeto
+
+```text
 projeto-mapi/
-├── requirements.txt
 ├── src/
-│   ├── main.py                 # Ponto de entrada do sistema
-│   ├── collectors/
-│   │   ├── base_collector.py   # Lógica base para coletores APAC
+│   ├── main.py                # Ponto de entrada da aplicação
+│   ├── collectors/            # Agentes de coleta (ANA, APAC, CEMADEN)
 │   │   ├── ana_rest_collector.py
 │   │   ├── apac_cemaden_collector.py
-│   │   └── apac_meteorologia24h_collector.py
-│   ├── controllers/
-│   │   └── sensor_manager.py   # Gerenciamento do ciclo de vida do sensor
-│   ├── services/
-│   │   ├── auth_manager.py     # Autenticação (ANA)
-│   │   └── mqtt_manager.py     # Cliente MQTT
-│   └── utils/
-│       └── text_utils.py       # Tratamento de strings e acentos
-└── ...
+│   │   ├── apac_meteorologia24h_collector.py
+│   │   └── base_collector.py  # Classe base com lógica comum
+│   ├── controllers/           # Lógica de negócio e orquestração
+│   │   └── sensor_manager.py  # Implementação do Sensor Virtual (Fog)
+│   ├── services/              # Serviços de infraestrutura
+│   │   ├── auth_manager.py    # Autenticação (OAuth ANA)
+│   │   └── mqtt_manager.py    # Conectividade e Publicação MQTT
+│   └── utils/                 # Funções utilitárias e processamento de texto
+│       └── text_utils.py
+├── tests/                     # Suíte de testes automatizados
+│   ├── test_battery_logic.py
+│   └── test_payload_structure.py
+├── extract_rmr_stations.py    # Script utilitário para extração de estações
+├── .env.example               # Template de variáveis de ambiente
+├── requirements.txt           # Dependências do projeto
+└── README.md                  # Documentação principal
 ```
 
-## Como Começar
+## 📋 Instruções de Execução
 
-### Pré-requisitos
-- Python 3.8+
-- Broker MQTT (Ex: HiveMQ, Mosquitto ou local)
+### 1. Preparação do Ambiente
+Certifique-se de ter o Python 3.12+ instalado. Recomenda-se o uso de ambiente virtual:
 
-### Instalação
-
-1. **Clone o repositório:**
-   ```sh
-   git clone <url-do-seu-repositorio>
-   cd projeto-mapi
-   ```
-
-2. **Crie e ative um ambiente virtual:**
-   ```sh
-   python -m venv .venv
-   source .venv/bin/activate  # Windows: .venv\Scripts\activate
-   ```
-
-3. **Instale as dependências:**
-   ```sh
-   pip install -r requirements.txt
-   ```
-
-## Configuração
-
-### MQTT
-O sistema está configurado por padrão para utilizar o broker público da HiveMQ. Para alterar, edite o `src/main.py`:
-```python
-mqtt = MQTTManager(broker="seu-broker.com", port=1883)
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# ou
+.venv\Scripts\activate     # Windows
 ```
 
-### API da ANA
-Crie um arquivo `.env` na raiz do projeto com suas credenciais:
-```ini
-ANA_IDENTIFICADOR="seu_usuario"
-ANA_SENHA="sua_senha"
-```
-*Para obter acesso, envie e-mail para hidro@ana.gov.br.*
-
-## Como Executar
-
-Inicie o sistema com:
-```sh
-python src/main.py
+### 2. Instalação de Dependências
+```bash
+pip install -r requirements.txt
 ```
 
-O sistema irá:
-1. Conectar ao Broker MQTT.
-2. Iniciar threads para cada sensor das cidades alvo.
-3. Coletar e publicar dados periodicamente.
-4. Exibir o status das leituras no console.
+### 3. Configuração
+Crie o arquivo `.env` a partir do exemplo e ajuste as credenciais e configurações do Broker MQTT:
+```bash
+cp .env.example .env
+```
+
+### 4. Inicialização
+Para rodar a malha de coletores e sensores virtuais:
+```bash
+python -m src.main
+```
+
+## 📊 Exemplo de Payload (MQTT)
+
+```json
+{
+  "id_sensor": "ANA-TELE-CAPIBARIBE-SLM",
+  "timestamp_coleta": "2026-06-04T10:30:00.123456",
+  "status_bateria": "98.5%",
+  "fog_valor_referencia": 12.5,
+  "nivel": 12.5,
+  "chuva": 0.0,
+  "vazao": 45.2
+}
+```
+
+## 📄 Licença
+Este projeto está sob a licença **MIT**.
