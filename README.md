@@ -1,5 +1,11 @@
 # MAPI Edge - Coletores e Sensores Virtuais (Fog Computing) 📡🌊
 
+> **DESCONTINUADO (2026-10-10).** Este componente (MAPI Edge: coleta ANA/APAC e publicação via MQTT)
+> não faz mais parte do ecossistema MAPI. A coleta passou a ser feita pela própria
+> [MAPI API](https://github.com/Lucas-Pavao/projeto-mapi-api), em jobs agendados
+> (`SensorCollectionTask`), e a ingestão MQTT foi removida. O código fica aqui só como registro
+> histórico; não recebe manutenção.
+
 O **MAPI Edge** é o componente de borda do ecossistema MAPI, desenvolvido para monitoramento hidrometeorológico resiliente através de **Fog Computing (Computação em Névoa)**.
 
 Este módulo virtualiza estações de monitoramento físicas das agências **ANA** e **APAC**, aplicando inteligência local para otimização de banda e detecção de anomalias antes do envio dos dados via MQTT.
